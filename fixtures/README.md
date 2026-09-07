@@ -1,5 +1,7 @@
 # Procedencia de los fixtures
 
+Esta página documenta Crunchyroll. La [evidencia de HBO Max](hbomax/README.md) y su fixture están separados por servicio.
+
 Inspección directa del reproductor web de Crunchyroll, Chrome, 7 de septiembre de 2026, interfaz es-es. No se consultaron APIs internas.
 
 `player-es.html` conserva la jerarquía relevante, tipos de elementos, data-testid, etiquetas ARIA y texto observados. Se eliminaron clases visuales innecesarias, rutas SVG, fuentes de vídeo, título del episodio y datos de cuenta. El rango del fixture es sintético y no representa tiempos de contenido.

@@ -1,9 +1,14 @@
 import { AutomationEngine } from './core/engine';
-import { createCrunchyrollAdapter, SELECTORS } from './services/crunchyroll';
+import { createServiceIntegration } from './services/registry';
+import { isManualPlaybackIntent } from './services/manual-intent';
 import { defaultSettings, normalizeSettings, SETTINGS_KEY } from './shared/settings';
 import type { Request } from './shared/types';
 
-// Static scripts also run on browse pages so entering /watch via SPA works.
+const integration = createServiceIntegration(document, () => location.href);
+if (integration) start(integration);
+
+function start({adapter, manual}: NonNullable<ReturnType<typeof createServiceIntegration>>): void {
+// Static scripts also run on browse pages so entering a watch route via SPA works.
 // Bootstrap remains paused until local settings AND worker tab state are known.
 let settings = defaultSettings();
 let paused = true;
@@ -16,7 +21,7 @@ let pending: ReturnType<typeof setTimeout> | undefined;
 let player: HTMLElement | null = null;
 let video: HTMLVideoElement | null = null;
 let lastUrl = location.pathname;
-const adapter = createCrunchyrollAdapter();
+
 const engine = new AutomationEngine(adapter, () => ({settings, paused: paused || !initialized}));
 const mediaEvents = ['loadedmetadata', 'loadstart', 'emptied', 'play', 'pause', 'ended', 'seeked', 'timeupdate'];
 
@@ -50,30 +55,8 @@ function onManualIntent(event: Event): void {
   // Input can arrive before asynchronous preferences finish loading, or between
   // a SPA player replacement and the scheduled observer pass.
   bindPlayer();
-  const target = event.target;
-  if (!player || !video) return;
-  const inPlayer = player.contains(target);
-  if (event instanceof KeyboardEvent) {
-    if (target.matches('input:not([type="range"]),textarea,[contenteditable="true"]')) return;
-    // Button activation is handled by its trusted click, including keyboard Enter.
-    if (target.closest('button') && ['Enter', ' '].includes(event.key)) return;
-    const playbackKeys = [' ', 'k', 'K', 'ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'];
-    const globalPlayerKey = target === document.body || target === document.documentElement;
-    if ((!inPlayer && !globalPlayerKey) || !playbackKeys.includes(event.key)) return;
-    // Starting playback is not a request to inhibit future skips.
-    if ([' ', 'k', 'K'].includes(event.key) && video.paused) return;
-    if (target.closest('[data-testid="volume-slider-container"]')) return;
-  } else {
-    if (!inPlayer) return;
-    const button = target.closest('button');
-    const seek = target.closest('input.timeline-slider,[data-testid="jump-backward-button"],[data-testid="jump-forward-button"]');
-    const skip = button?.querySelector(SELECTORS.skipIcon);
-    const next = target.closest(SELECTORS.next);
-    const surface = inPlayer && !target.closest('button,input,[role="slider"],[role="menu"]');
-    const pauseIntent = (target.closest('[data-testid="play-pause-button"]') || surface) && !video.paused;
-    if (!seek && !skip && !next && !pauseIntent) return;
-  }
-  engine.manualInteraction(target);
+  if (!isManualPlaybackIntent(event, adapter.inspect(), manual)) return;
+  engine.manualInteraction(event.target);
 }
 
 document.addEventListener('pointerdown', onManualIntent, true);
@@ -137,3 +120,5 @@ window.addEventListener('pagehide', (event: PageTransitionEvent) => {
   playerObserver.disconnect();
   engine.dispose();
 }, {once:true});
+
+}

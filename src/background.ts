@@ -1,5 +1,5 @@
-import { ACTIONS, type Action } from './shared/types';
-import { SETTINGS_KEY, normalizeSettings, updateSetting } from './shared/settings';
+import { ACTIONS, isServiceId, type Action } from './shared/types';
+import { SETTINGS_KEY, normalizeSettings, updatePlatform, updateSetting } from './shared/settings';
 
 type Response =
   | { ok: true; settings: ReturnType<typeof normalizeSettings> }
@@ -32,7 +32,7 @@ function isServiceContent(sender: chrome.runtime.MessageSender): boolean {
   if (!validTabId(sender.tab?.id) || !sender.url) return false;
   try {
     const url = new URL(sender.url);
-    const supported = url.origin === 'https://www.crunchyroll.com';
+    const supported = url.origin === 'https://www.crunchyroll.com' || url.origin === 'https://play.hbomax.com';
     return supported && (!sender.origin || sender.origin === url.origin);
   } catch {
     return false;
@@ -58,11 +58,24 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     }
     case 'SET_SETTING': {
       if (!popup) return denied();
-      const { key, value } = message;
+      const { key, value, service } = message;
       if (typeof value !== 'boolean' || (key !== 'enabled' && !ACTIONS.includes(key as Action))) return invalid();
+      if (key !== 'enabled' && !isServiceId(service)) return invalid();
       return serial(async () => {
         const data = await chrome.storage.local.get(SETTINGS_KEY);
-        const settings = updateSetting(normalizeSettings(data[SETTINGS_KEY]), key as 'enabled' | Action, value);
+        const settings = updateSetting(normalizeSettings(data[SETTINGS_KEY]), key as 'enabled' | Action, value,
+          isServiceId(service) ? service : undefined);
+        await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+        return { ok: true, settings };
+      });
+    }
+    case 'SET_PLATFORM': {
+      if (!popup) return denied();
+      const { service, enabled } = message;
+      if (!isServiceId(service) || typeof enabled !== 'boolean') return invalid();
+      return serial(async () => {
+        const data = await chrome.storage.local.get(SETTINGS_KEY);
+        const settings = updatePlatform(normalizeSettings(data[SETTINGS_KEY]), service, enabled);
         await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
         return { ok: true, settings };
       });
@@ -96,7 +109,7 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
   }
 }
 
-const handledTypes = new Set(['GET_SETTINGS', 'SET_SETTING', 'GET_TAB_PAUSE', 'SET_TAB_PAUSE']);
+const handledTypes = new Set(['GET_SETTINGS', 'SET_SETTING', 'SET_PLATFORM', 'GET_TAB_PAUSE', 'SET_TAB_PAUSE']);
 
 // Register synchronously. Async listeners require newer Chrome rollout behavior.
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {

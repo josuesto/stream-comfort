@@ -1,4 +1,4 @@
-import { ACTIONS, type Action, type Settings } from './types';
+import { ACTIONS, SERVICES, isServiceId, type Action, type ServiceId, type Settings } from './types';
 
 export const SETTINGS_KEY = 'settings';
 export type SettingKey = 'enabled' | Action;
@@ -8,8 +8,10 @@ export function defaultSettings(): Settings {
   return {
     version: 1,
     enabled: true,
+    platforms: { crunchyroll: true, hbomax: true },
     services: {
       crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false },
+      hbomax: { intro: true, recap: true, credits: false, nextEpisode: false },
     },
   };
 }
@@ -33,23 +35,35 @@ export function normalizeSettings(value: unknown): Settings {
   const enabled = own(value, 'enabled');
   if (typeof enabled === 'boolean') settings.enabled = enabled;
   const services = own(value, 'services');
-  const service = isRecord(services) ? own(services, 'crunchyroll') : undefined;
-  if (isRecord(service)) {
+  const platforms = own(value, 'platforms');
+  for (const serviceId of SERVICES) {
+    const platformValue = isRecord(platforms) ? own(platforms, serviceId) : undefined;
+    if (typeof platformValue === 'boolean') settings.platforms[serviceId] = platformValue;
+    const service = isRecord(services) ? own(services, serviceId) : undefined;
+    if (!isRecord(service)) continue;
     for (const action of ACTIONS) {
       const actionValue = own(service, action);
-      if (typeof actionValue === 'boolean') settings.services.crunchyroll[action] = actionValue;
+      if (typeof actionValue === 'boolean') settings.services[serviceId][action] = actionValue;
     }
   }
   return settings;
 }
 
 /** Apply one validated setting without mutating the caller's object. */
-export function updateSetting(settings: Settings, key: SettingKey, value: boolean): Settings {
-  if (typeof value !== 'boolean' || (key !== 'enabled' && !ACTIONS.includes(key))) {
+export function updateSetting(settings: Settings, key: SettingKey, value: boolean, service: ServiceId = 'crunchyroll'): Settings {
+  if (typeof value !== 'boolean' || (key !== 'enabled' && (!ACTIONS.includes(key) || !isServiceId(service)))) {
     throw new TypeError('Invalid setting');
   }
   const next = normalizeSettings(settings);
   if (key === 'enabled') next.enabled = value;
-  else next.services.crunchyroll[key] = value;
+  else next.services[service][key] = value;
+  return next;
+}
+
+/** Enable or disable a service without resetting any of its action choices. */
+export function updatePlatform(settings: Settings, service: ServiceId, enabled: boolean): Settings {
+  if (!isServiceId(service) || typeof enabled !== 'boolean') throw new TypeError('Invalid platform setting');
+  const next = normalizeSettings(settings);
+  next.platforms[service] = enabled;
   return next;
 }

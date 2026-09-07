@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AutomationEngine, isControlVisible } from '../src/core/engine';
-import type { Action, Capabilities, PlaybackSnapshot, ServiceAdapter, Settings } from '../src/shared/types';
+import { defaultSettings } from '../src/shared/settings';
+import type { Action, Capabilities, PlaybackSnapshot, ServiceAdapter, ServiceId } from '../src/shared/types';
 
 const capabilities: Capabilities = {
   intro: { supported: true, detail: 'fixture' },
@@ -24,15 +25,11 @@ function player(episodeId = 'episode-one'): PlaybackSnapshot {
   return { episodeId, player: root, video, candidates: { intro }, capabilities: structuredClone(capabilities) };
 }
 
-function fixture() {
+function fixture(service: ServiceId = 'crunchyroll') {
   let snapshot = player();
-  const settings: Settings = {
-    version: 1,
-    enabled: true,
-    services: { crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false } },
-  };
+  const settings = defaultSettings();
   const state = { settings, paused: false };
-  const adapter: ServiceAdapter = { id: 'crunchyroll', inspect: vi.fn(() => snapshot) };
+  const adapter: ServiceAdapter = { id: service, inspect: vi.fn(() => snapshot) };
   const engine = new AutomationEngine(adapter, () => state, {
     isVisible: element => element.isConnected && !element.hidden && element.getAttribute('aria-hidden') !== 'true',
   });
@@ -98,6 +95,61 @@ describe('playback actions and settings', () => {
     media(f.snapshot.video!, { ended: true, paused: true });
     f.engine.step();
     expect(credits).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it.each(['crunchyroll', 'hbomax'] as const)('honors the %s platform switch without consuming the action', service => {
+    const f = fixture(service);
+    const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    f.state.settings.platforms[service] = false;
+    f.engine.step();
+    f.engine.resume();
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    expect(f.state.settings.platforms[service]).toBe(false);
+    f.state.settings.platforms[service] = true;
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it.each(['crunchyroll', 'hbomax'] as const)('keeps %s independent from the other platform and its action preferences', service => {
+    const other = service === 'crunchyroll' ? 'hbomax' : 'crunchyroll';
+    const f = fixture(service);
+    f.state.settings.platforms[other] = false;
+    f.state.settings.services[other].intro = false;
+    f.state.settings.services[service].intro = false;
+    const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    f.state.settings.services[service].intro = true;
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it.each(['crunchyroll', 'hbomax'] as const)('lets global off override the enabled %s platform', service => {
+    const f = fixture(service);
+    f.state.settings.enabled = false;
+    const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    f.engine.step();
+    f.engine.resume();
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    f.state.settings.enabled = true;
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('uses the HBO action preferences and one shared credits/next-episode attempt', () => {
+    const f = fixture('hbomax');
+    f.snapshot.candidates = {};
+    f.state.settings.services.hbomax.credits = true;
+    f.state.settings.services.hbomax.nextEpisode = true;
+    const credits = vi.spyOn(f.add('credits'), 'click');
+    const next = vi.spyOn(f.add('nextEpisode'), 'click');
+    f.engine.step();
+    media(f.snapshot.video!, { ended: true, paused: true });
+    f.engine.step();
+    expect(credits).toHaveBeenCalledOnce();
     expect(next).not.toHaveBeenCalled();
   });
 
@@ -325,6 +377,38 @@ describe('manual interaction and navigation', () => {
     });
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
+  });
+
+  it.each(['crunchyroll', 'hbomax'] as const)('honors %s disabled during reinspection', service => {
+    const f = fixture(service);
+    const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    let inspections = 0;
+    vi.mocked(f.adapter.inspect).mockImplementation(() => {
+      if (++inspections === 2) f.state.settings.platforms[service] = false;
+      return f.snapshot;
+    });
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    f.state.settings.platforms[service] = true;
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a disabled HBO platform inactive across episode navigation', () => {
+    const f = fixture('hbomax');
+    f.engine.step();
+    f.state.settings.platforms.hbomax = false;
+    f.snapshot.player!.remove();
+    f.snapshot = player('episode-two');
+    const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    f.engine.step();
+    f.engine.resume();
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    f.state.settings.platforms.hbomax = true;
+    f.engine.step();
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
   });
 
   it('carries suppression of manually declined controls through a media change', () => {

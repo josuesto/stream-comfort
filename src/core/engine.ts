@@ -188,7 +188,7 @@ export class AutomationEngine {
     const { settings, paused } = this.getState();
     const { player, video } = snapshot;
     return Boolean(
-      settings.enabled && !paused && !this.held &&
+      settings.enabled && settings.platforms[this.adapter.id] && !paused && !this.held &&
       snapshot.episodeId && !this.context?.quarantined &&
       player?.isConnected && video?.isConnected && player.contains(video) &&
       player.ownerDocument.visibilityState === 'visible' &&
@@ -198,7 +198,7 @@ export class AutomationEngine {
 
   private canAct(snapshot: PlaybackSnapshot, action: Action, element: HTMLElement): boolean {
     const { settings, paused } = this.getState();
-    if (!settings.enabled || paused || this.held || !settings.services[this.adapter.id][action]) return false;
+    if (!settings.enabled || !settings.platforms[this.adapter.id] || paused || this.held || !settings.services[this.adapter.id][action]) return false;
     if (!snapshot.capabilities[action].supported || !snapshot.player?.contains(element)) return false;
     if (!element.isConnected || !this.visible(element) || this.manuallySuppressed.has(element)) return false;
     for (let node: HTMLElement | null = element; node; node = node.parentElement) {

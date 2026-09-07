@@ -11,16 +11,33 @@
     <main id="stream-comfort">
       <header class="header">
         <div class="wordmark"><span class="brand-mark" aria-hidden="true">››</span><h1>Stream Comfort</h1></div>
-        <p class="tagline">Tu episodio, a tu ritmo.</p>
+        <button class="platforms-button" id="platforms-button" type="button" aria-controls="platforms-panel" aria-expanded="false">Plataformas</button>
       </header>
 
+      <section id="platforms-panel" aria-labelledby="platforms-heading" hidden>
+        <h2 id="platforms-heading">Tus plataformas</h2>
+        <p class="page-detail">Elige dónde automatizar los controles. Apagar una plataforma conserva sus opciones de salto.</p>
+        <div class="actions">
+          <label class="toggle-row" for="platform-crunchyroll">
+            <span><span class="row-title" id="platform-crunchyroll-label">Crunchyroll</span></span>
+            <input id="platform-crunchyroll" type="checkbox" role="switch" aria-labelledby="platform-crunchyroll-label" disabled>
+          </label>
+          <label class="toggle-row" for="platform-hbomax">
+            <span><span class="row-title" id="platform-hbomax-label">HBO Max</span></span>
+            <input id="platform-hbomax" type="checkbox" role="switch" aria-labelledby="platform-hbomax-label" disabled>
+          </label>
+        </div>
+        <p class="tab-note">Las opciones de salto corresponden a la plataforma abierta en esta pestaña.</p>
+      </section>
+
+      <div id="playback-settings">
       <label class="toggle-row global-row" for="enabled">
         <span><span class="row-title" id="enabled-label">Activar extensión</span><span class="row-detail" id="enabled-detail">Conserva tus preferencias al apagarla.</span></span>
         <input id="enabled" type="checkbox" role="switch" aria-labelledby="enabled-label" aria-describedby="enabled-detail" disabled>
       </label>
 
       <section class="service-section" aria-labelledby="service-heading">
-        <div class="section-heading"><h2 id="service-heading">Crunchyroll</h2><span class="version">V1</span></div>
+        <div class="section-heading"><h2 id="service-heading">Esta pestaña</h2><span class="version">0.2</span></div>
         <div class="page-state" id="page-state" data-state="loading">
           <span class="state-dot" aria-hidden="true"></span>
           <p id="status" role="status">Comprobando esta pestaña…</p>
@@ -56,12 +73,13 @@
         <button id="tab-pause" type="button" disabled>Pausar en esta pestaña</button>
         <p class="tab-note" id="tab-note">La pausa dura hasta que la reanudes o cierres la pestaña.</p>
       </section>
+      </div>
 
       <div class="error" id="error-panel" hidden>
         <p id="error" role="alert"></p>
         <button id="retry" class="retry" type="button">Volver a intentar</button>
       </div>
-      <footer>Preferencias guardadas en este dispositivo.<br>El avance propio de Crunchyroll se controla en su reproductor.</footer>
+      <footer>Preferencias guardadas en este dispositivo.<br><span id="autoplay-note">El avance propio de cada plataforma se controla en su reproductor.</span></footer>
     </main>
   </body>
 </html>

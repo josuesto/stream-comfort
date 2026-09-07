@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Stream Comfort",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "minimum_chrome_version": "120",
-  "description": "Controles locales para saltar intros y créditos en el reproductor compatible de Crunchyroll.",
+  "description": "Saltos configurables con los controles reales de Crunchyroll y HBO Max. Preferencias locales por plataforma.",
   "permissions": ["storage"],
   "background": { "service_worker": "background.js" },
   "action": { "default_popup": "popup.html", "default_title": "Stream Comfort", "default_icon": {"16":"icons/16.png","32":"icons/32.png"} },
   "icons": {"16":"icons/16.png","32":"icons/32.png","48":"icons/48.png","128":"icons/128.png"},
   "content_scripts": [{
-    "matches": ["https://www.crunchyroll.com/*"],
+    "matches": ["https://www.crunchyroll.com/*", "https://play.hbomax.com/*"],
     "js": ["content.js"],
     "run_at": "document_idle"
   }],
