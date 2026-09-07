@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Stream Comfort</title>
+    <link rel="stylesheet" href="popup.css">
+    <script src="popup.js" type="module"></script>
+  </head>
+  <body>
+    <main id="stream-comfort">
+      <header class="header">
+        <div class="wordmark"><span class="brand-mark" aria-hidden="true">››</span><h1>Stream Comfort</h1></div>
+        <p class="tagline">Tu episodio, a tu ritmo.</p>
+      </header>
+
+      <label class="toggle-row global-row" for="enabled">
+        <span><span class="row-title" id="enabled-label">Activar extensión</span><span class="row-detail" id="enabled-detail">Conserva tus preferencias al apagarla.</span></span>
+        <input id="enabled" type="checkbox" role="switch" aria-labelledby="enabled-label" aria-describedby="enabled-detail" disabled>
+      </label>
+
+      <section class="service-section" aria-labelledby="service-heading">
+        <div class="section-heading"><h2 id="service-heading">Crunchyroll</h2><span class="version">V1</span></div>
+        <div class="page-state" id="page-state" data-state="loading">
+          <span class="state-dot" aria-hidden="true"></span>
+          <p id="status" role="status">Comprobando esta pestaña…</p>
+        </div>
+        <p class="page-detail" id="status-detail">Los saltos usan los controles del reproductor.</p>
+
+        <div class="actions">
+          <label class="toggle-row" for="intro">
+            <span><span class="row-title" id="intro-label">Saltar intros</span><span class="row-detail" id="intro-detail">Activa el botón «Saltar intro».</span></span>
+            <input id="intro" type="checkbox" role="switch" aria-labelledby="intro-label" aria-describedby="intro-detail" disabled>
+          </label>
+          <label class="toggle-row" for="recap">
+            <span><span class="row-title" id="recap-label">Saltar resúmenes</span><span class="row-detail" id="recap-detail">Activa el botón de resumen.</span></span>
+            <input id="recap" type="checkbox" role="switch" aria-labelledby="recap-label" aria-describedby="recap-detail" disabled>
+          </label>
+          <label class="toggle-row" for="credits">
+            <span><span class="row-title" id="credits-label">Saltar créditos</span><span class="row-detail" id="credits-detail">Avanza durante los créditos. Puede omitir escenas finales.</span></span>
+            <input id="credits" type="checkbox" role="switch" aria-labelledby="credits-label" aria-describedby="credits-detail" disabled>
+          </label>
+          <label class="toggle-row" for="nextEpisode">
+            <span><span class="row-title" id="nextEpisode-label">Siguiente episodio</span><span class="row-detail" id="nextEpisode-detail">Avanza cuando termine el vídeo.</span></span>
+            <input id="nextEpisode" type="checkbox" role="switch" aria-labelledby="nextEpisode-label" aria-describedby="nextEpisode-detail" disabled>
+          </label>
+          <label class="toggle-row unavailable-row" for="episode-list">
+            <span><span class="row-title" id="episode-list-label">Saltar episodios elegidos</span><span class="row-detail" id="episode-list-detail">No disponible. Secuencia sin verificar.</span></span>
+            <input id="episode-list" type="checkbox" role="switch" aria-labelledby="episode-list-label" aria-describedby="episode-list-detail" disabled>
+          </label>
+        </div>
+      </section>
+
+      <section class="tab-section" aria-label="Control de esta pestaña">
+        <p class="manual-hold" id="manual-hold" hidden>Detectamos una pausa o búsqueda manual. Reanuda aquí cuando quieras automatizar este episodio.</p>
+        <button id="tab-pause" type="button" disabled>Pausar en esta pestaña</button>
+        <p class="tab-note" id="tab-note">La pausa dura hasta que la reanudes o cierres la pestaña.</p>
+      </section>
+
+      <div class="error" id="error-panel" hidden>
+        <p id="error" role="alert"></p>
+        <button id="retry" class="retry" type="button">Volver a intentar</button>
+      </div>
+      <footer>Preferencias guardadas en este dispositivo.<br>El avance propio de Crunchyroll se controla en su reproductor.</footer>
+    </main>
+  </body>
+</html>
