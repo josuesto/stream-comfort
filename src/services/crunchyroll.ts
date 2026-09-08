@@ -16,7 +16,6 @@ export function episodeIdFromUrl(value: string): string | null {
 }
 
 const capabilities: Capabilities = {
-  selectedEpisode: { supported: true, detail: 'Omite solo los episodios de tu lista usando el botón siguiente visible.' },
   intro: { supported: true, detail: 'Control «Saltar intro» verificado en español.' },
   recap: { supported: false, reason: 'crRecapUnavailable', detail: 'Crunchyroll no ofrece un control de resumen en el reproductor inspeccionado.' },
   credits: { supported: true, detail: 'Requiere «Saltar créditos» y el botón siguiente visibles. Puede omitir escenas finales.' },
@@ -63,7 +62,6 @@ export function createCrunchyrollAdapter(
         if (label === 'Saltar intro' && text === label) result.candidates.intro = skip;
         if (label === 'Saltar créditos' && text === label && next && !video.ended) result.candidates.credits = next;
       }
-      if (next && !video.ended && !next.disabled && next.getAttribute('aria-disabled') !== 'true' && visible(next)) result.candidates.selectedEpisode = next;
       if (next && video.ended) result.candidates.nextEpisode = next;
       return result;
     },

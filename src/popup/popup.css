@@ -62,10 +62,6 @@ button:disabled { opacity: .5; cursor: default; }
 footer { color: #b6aa9c; font-size: 10px; line-height: 1.5; padding-top: 10px; }
 @media (prefers-reduced-motion: reduce) { input[role="switch"]::before { transition: none; } }
 .small-button { margin-top: 7px; padding: 6px 9px; font-size: 11px; }
-.editor-label { margin-top: 16px; margin-bottom: 7px; }
-textarea { width: 100%; resize: vertical; min-height: 130px; max-height: 220px; background: #181715; color: #f3eee7; border: 1px solid #777066; border-radius: 4px; padding: 8px; font: 11px/1.6 "Segoe UI", sans-serif; overflow-wrap: anywhere; }
-textarea:focus-visible { outline: 2px solid #ffceb0; outline-offset: 2px; }
-.editor-actions { display: flex; gap: 8px; margin-top: 12px; }
 
 .language-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; }
 .language-row select { color: #f3eee7; background: #302a25; border: 1px solid #746555; border-radius: 4px; padding: 5px 8px; }

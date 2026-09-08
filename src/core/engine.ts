@@ -18,7 +18,7 @@ interface EpisodeContext {
   quarantined: boolean;
 }
 
-const PRIORITY: readonly Action[] = ['selectedEpisode', 'intro', 'recap', 'credits', 'nextEpisode'];
+const PRIORITY: readonly Action[] = ['intro', 'recap', 'credits', 'nextEpisode'];
 const MAX_EPISODES = 64;
 type LedgerEntry = Action | 'advance';
 
@@ -200,7 +200,6 @@ export class AutomationEngine {
   private canAct(snapshot: PlaybackSnapshot, action: Action, element: HTMLElement): boolean {
     const { settings, paused } = this.getState();
     if (!settings.enabled || !settings.platforms[this.adapter.id] || paused || this.held || !settings.services[this.adapter.id][action]) return false;
-    if (action === 'selectedEpisode' && !settings.episodeLists[this.adapter.id].includes(snapshot.episodeId!)) return false;
     if (!snapshot.capabilities[action].supported || !snapshot.player?.contains(element)) return false;
     if (!element.isConnected || !this.visible(element) || this.manuallySuppressed.has(element)) return false;
     for (let node: HTMLElement | null = element; node; node = node.parentElement) {
@@ -227,7 +226,7 @@ export class AutomationEngine {
   }
 
   private isAdvance(action: Action): boolean {
-    return action === 'credits' || action === 'nextEpisode' || action === 'selectedEpisode';
+    return action === 'credits' || action === 'nextEpisode';
   }
 
   private entriesFor(episodeId: string): Set<LedgerEntry> {

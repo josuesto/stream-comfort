@@ -13,10 +13,9 @@ const originalSettings = (): Settings => ({
   language: 'es',
   enabled: true,
   platforms: { crunchyroll: true, hbomax: true },
-  episodeLists: { crunchyroll: [], hbomax: [] },
   services: {
-    crunchyroll: { intro: true, recap: false, credits: false, nextEpisode: false, selectedEpisode: false },
-    hbomax: { intro: true, recap: false, credits: false, nextEpisode: false, selectedEpisode: false },
+    crunchyroll: { intro: true, recap: false, credits: false, nextEpisode: false },
+    hbomax: { intro: true, recap: false, credits: false, nextEpisode: false },
   },
 });
 const originalStatus = (service: ServiceId = 'crunchyroll'): TabStatus => ({
@@ -27,7 +26,6 @@ const originalStatus = (service: ServiceId = 'crunchyroll'): TabStatus => ({
     recap: { supported: false, detail: 'No se ha verificado un control de resumen.' },
     credits: { supported: false, detail: 'No hay una señal fiable de créditos.' },
     nextEpisode: { supported: true, detail: 'Avanza al finalizar el vídeo.' },
-    selectedEpisode: { supported: true, detail: 'Lista elegida.' },
   },
 });
 
@@ -50,11 +48,6 @@ function fixture() {
     if (request.type === 'SET_PLATFORM') {
       settings.platforms[request.service] = request.enabled;
       return { ok: true, settings: structuredClone(settings) };
-    }
-    if (request.type === 'SET_EPISODE_LIST') {
-      settings.episodeLists[request.service] = request.episodeIds;
-      if (!request.episodeIds.length) settings.services[request.service].selectedEpisode = false;
-      return {ok:true,settings:structuredClone(settings)};
     }
     if (request.type === 'SET_TAB_PAUSE') {
       if (status) status = { ...status, paused: request.paused, manualHold: request.paused ? status.manualHold : false };
@@ -116,15 +109,22 @@ describe('popup controls', () => {
     return { ...f, controller };
   }
 
+  it.each(['en', 'es'] as const)('offers only the four playback actions in %s', async language => {
+    const f = fixture();
+    f.setSettings({ ...originalSettings(), language });
+    await start(f);
+    expect([...document.querySelectorAll('.actions input')].filter(node => !node.id.startsWith('platform-')).map(node => node.id))
+      .toEqual(['intro', 'recap', 'credits', 'nextEpisode']);
+    expect(document.querySelector('#selectedEpisode, #edit-episodes, #episodes-panel')).toBeNull();
+    expect(input('nextEpisode').checked).toBe(false);
+  });
+
   it.each(['en', 'es'] as const)('keeps an unchanged %s popup still instead of rewriting it on each poll', async language => {
     const initial = fixture();
     initial.setSettings({ ...originalSettings(), language });
     const f = await start(initial);
-    document.getElementById('edit-episodes')!.click();
-    const editor = document.getElementById('episode-links') as HTMLTextAreaElement;
-    editor.value = 'https://www.crunchyroll.com/watch/EPISODE01';
-    editor.focus();
-    editor.setSelectionRange(8,17);
+    const control = document.getElementById('tab-pause')!;
+    control.focus();
     document.body.scrollTop = 40;
     const changes: MutationRecord[] = [];
     const observer = new MutationObserver(records => changes.push(...records));
@@ -134,11 +134,8 @@ describe('popup controls', () => {
     observer.disconnect();
     expect(f.tabMessage.mock.calls.length).toBeGreaterThan(1);
     expect(changes).toHaveLength(0);
-    expect(document.activeElement).toBe(editor);
-    expect(editor.selectionStart).toBe(8);
-    expect(editor.selectionEnd).toBe(17);
+    expect(document.activeElement).toBe(control);
     expect(document.body.scrollTop).toBe(40);
-    expect(editor.value).toContain('EPISODE01');
   });
 
   it('starts in English independently of browser language and translates platform controls', async () => {
@@ -167,8 +164,6 @@ describe('popup controls', () => {
     const previous = originalSettings();
     previous.enabled = false;
     previous.platforms.hbomax = false;
-    previous.episodeLists.crunchyroll = ['EPISODE01'];
-    previous.services.crunchyroll.selectedEpisode = true;
     f.setSettings(previous);
     f.setStatus({ ...originalStatus(), paused: true, manualHold: true });
     const mounted = await start(f);
@@ -182,25 +177,6 @@ describe('popup controls', () => {
     await start(f);
     expect(document.documentElement.lang).toBe('en');
     expect(document.getElementById('enabled-label')?.textContent).toBe('Enable extension');
-  });
-
-  it('translates an open editor and its validation error without losing the draft or selection', async () => {
-    const f = await start();
-    document.getElementById('edit-episodes')!.click();
-    const editor = document.getElementById('episode-links') as HTMLTextAreaElement;
-    editor.value = 'not an episode link';
-    editor.setSelectionRange(4, 10);
-    document.getElementById('save-episodes')!.click();
-    expect(document.getElementById('error')?.textContent).toContain('enlaces válidos');
-    await changeLanguage('en');
-    expect(document.getElementById('episodes-panel')?.hidden).toBe(false);
-    expect(document.getElementById('episodes-heading')?.textContent).toBe('Crunchyroll episodes');
-    expect(document.getElementById('save-episodes')?.textContent).toBe('Save list');
-    expect(document.getElementById('error')?.textContent).toContain('valid Crunchyroll episode links');
-    expect(editor.value).toBe('not an episode link');
-    expect([editor.selectionStart, editor.selectionEnd]).toEqual([4, 10]);
-    expect(f.settings().episodeLists.crunchyroll).toEqual([]);
-    expect(f.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_EPISODE_LIST' }));
   });
 
   it('rolls back a failed language save and allows retry without altering skip choices', async () => {
@@ -261,16 +237,13 @@ describe('popup controls', () => {
     status.lastAction = 'recap';
     status.capabilities.intro = { supported: false, detail: 'Solo español.', reason: 'spanishPlayerRequired' };
     status.capabilities.recap = { supported: false, detail: 'Sin resumen.', reason: 'crRecapUnavailable' };
-    status.capabilities.selectedEpisode = { supported: false, detail: 'No se puede.', reason: 'hboEpisodeListUnavailable' };
     f.setStatus(status);
     await start(f);
     await changeLanguage('en');
     expect(document.getElementById('intro-detail')?.textContent).toContain('player set to Spanish');
     expect(document.getElementById('recap-detail')?.textContent).toContain('Crunchyroll has no recap control');
-    expect(document.getElementById('selectedEpisode-detail')?.textContent).toContain('HBO has no Next episode button');
     expect(document.getElementById('last-action')?.textContent).toBe('Last action: recap.');
     expect(input('intro').disabled).toBe(true);
-    expect(input('selectedEpisode').disabled).toBe(true);
   });
 
   it('keeps both catalogs complete with matching interpolation parameters', () => {
@@ -298,48 +271,6 @@ describe('popup controls', () => {
     expect(document.getElementById('tab-pause')!.textContent).toBe('Reanudar en esta pestaña');
   });
 
-  it('edits exact episode links locally without automatically enabling the selection', async () => {
-    const f = await start();
-    expect(input('selectedEpisode').disabled).toBe(true);
-    document.getElementById('edit-episodes')!.click();
-    document.getElementById('add-current-episode')!.click();
-    document.getElementById('add-current-episode')!.click();
-    const links = document.getElementById('episode-links') as HTMLTextAreaElement;
-    expect(links.value).toBe('https://www.crunchyroll.com/watch/EPISODE01');
-    document.getElementById('save-episodes')!.click(); await settle();
-    expect(f.settings().episodeLists.crunchyroll).toEqual(['EPISODE01']);
-    expect(f.settings().services.crunchyroll.selectedEpisode).toBe(false);
-    expect(input('selectedEpisode').disabled).toBe(false);
-    await change('selectedEpisode',true);
-    expect(f.settings().services.crunchyroll.selectedEpisode).toBe(true);
-    expect(f.settings().services.crunchyroll.nextEpisode).toBe(false);
-  });
-
-  it('rejects invalid links without losing the draft or partially saving a list', async () => {
-    const f = await start();
-    document.getElementById('edit-episodes')!.click();
-    const links = document.getElementById('episode-links') as HTMLTextAreaElement;
-    links.value = 'https://www.crunchyroll.com/watch/EPISODE01\nhttps://evil.test/watch/EPISODE02';
-    document.getElementById('save-episodes')!.click(); await settle();
-    expect(f.sendMessage.mock.calls.some(([m])=>m.type==='SET_EPISODE_LIST')).toBe(false);
-    expect(document.getElementById('error-panel')!.hidden).toBe(false);
-    expect(links.value).toContain('evil.test');
-    expect(f.settings().episodeLists.crunchyroll).toEqual([]);
-  });
-
-  it('keeps the editor attached to its original episode and service after navigation', async () => {
-    const f = await start();
-    document.getElementById('edit-episodes')!.click();
-    document.getElementById('add-current-episode')!.click();
-    f.setStatus(originalStatus('hbomax'));
-    await f.controller.refreshStatus();
-    expect((document.getElementById('add-current-episode') as HTMLButtonElement).disabled).toBe(true);
-    document.getElementById('add-current-episode')!.click();
-    document.getElementById('save-episodes')!.click(); await settle();
-    expect(f.sendMessage).toHaveBeenCalledWith({type:'SET_EPISODE_LIST',service:'crunchyroll',episodeIds:['EPISODE01']});
-    expect(f.settings().episodeLists.hbomax).toEqual([]);
-  });
-
   it('preserves independently selected actions when the main switch is cycled', async () => {
     const f = await start();
     expect(input('intro').checked).toBe(true);
@@ -349,7 +280,7 @@ describe('popup controls', () => {
     await change('intro', false);
     await change('enabled', false);
     await change('enabled', true);
-    expect(f.settings().services.crunchyroll).toEqual({ intro: false, recap: false, credits: false, nextEpisode: true, selectedEpisode: false });
+    expect(f.settings().services.crunchyroll).toEqual({ intro: false, recap: false, credits: false, nextEpisode: true });
     expect(input('intro').checked).toBe(false);
     expect(input('nextEpisode').checked).toBe(true);
     expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'enabled', value: true });
@@ -530,10 +461,8 @@ describe('popup controls', () => {
     expect(input('intro').disabled).toBe(false);
     expect(input('recap').disabled).toBe(true);
     expect(input('credits').disabled).toBe(true);
-    expect(input('selectedEpisode').disabled).toBe(true);
     expect(document.getElementById('recap-detail')?.textContent).toContain('No se ha verificado');
     expect(document.getElementById('credits-detail')?.textContent).toContain('señal fiable');
-    expect(document.getElementById('selectedEpisode-detail')?.textContent).toContain('Elige episodios');
     expect(input('recap').checked).toBe(false);
     expect(input('nextEpisode').disabled).toBe(false);
   });

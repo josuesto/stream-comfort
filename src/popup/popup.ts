@@ -1,6 +1,6 @@
 import { ACTIONS, SERVICES, CAPABILITY_REASONS, isServiceId, isUiLanguage, type UiLanguage, type Action, type Request, type ServiceId, type Settings, type TabStatus } from '../shared/types';
 import { translate, type MessageKey, type MessageParams } from './i18n';
-import { episodeIdFromLink, episodeLink, validEpisodeId, validateEpisodeList } from '../shared/episodes';
+import { validEpisodeId } from '../shared/episodes';
 
 type PopupChrome = Pick<typeof chrome, 'tabs' | 'runtime' | 'storage'>;
 type SettingKey = 'enabled' | Action;
@@ -15,13 +15,12 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function isSettingsResponse(value: unknown): value is SettingsResponse {
   if (!isObject(value) || value.ok !== true || !isObject(value.settings)) return false;
   const settings = value.settings;
-  if (settings.version !== 1 || !isUiLanguage(settings.language) || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms) || !isObject(settings.episodeLists)) return false;
+  if (settings.version !== 1 || !isUiLanguage(settings.language) || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms)) return false;
   const services = settings.services;
   const platforms = settings.platforms;
-  const lists = settings.episodeLists;
   return SERVICES.every(service => {
     const actions = services[service];
-    return typeof platforms[service] === 'boolean' && validateEpisodeList(service, lists[service]) !== null
+    return typeof platforms[service] === 'boolean'
       && isObject(actions) && ACTIONS.every(action => typeof actions[action] === 'boolean');
   });
 }
@@ -75,10 +74,6 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   let polling = false;
   let statusRevision = 0;
   let disposed = false;
-  let editorService: ServiceId | null = null;
-  let editorEpisode: string | null = null;
-  let listSaving = false;
-  const linksInput = element<HTMLTextAreaElement>('episode-links');
 
   const send = (message: Request): Promise<unknown> => api.runtime.sendMessage(message);
   const language = (): UiLanguage => languageSaving ?? settings?.language ?? 'en';
@@ -106,17 +101,10 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
       renderError();
     }
     languageInput.value = locale;
-    languageInput.disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null || listSaving;
-    if (editorService) element('episodes-heading').textContent = t('episodesHeading', { service: serviceNames[editorService] });
+    languageInput.disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
     switches.enabled.checked = saving?.key === 'enabled' ? saving.value : settings?.enabled ?? false;
     switches.enabled.disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
-    element('playback-settings').hidden = platformsOpen || editorService !== null;
-    element('episodes-panel').hidden = editorService === null;
-    platformsButton.disabled = listSaving || languageSaving !== null;
-    linksInput.disabled = listSaving || languageSaving !== null;
-    element<HTMLButtonElement>('save-episodes').disabled = listSaving || languageSaving !== null;
-    element<HTMLButtonElement>('cancel-episodes').disabled = listSaving || languageSaving !== null;
-    element<HTMLButtonElement>('add-current-episode').disabled = listSaving || languageSaving !== null || !editorEpisode || status?.episodeId !== editorEpisode || status.service !== editorService;
+    element('playback-settings').hidden = platformsOpen;
     element('platforms-panel').hidden = !platformsOpen;
     platformsButton.textContent = platformsOpen ? t('back') : t('platforms');
     platformsButton.setAttribute('aria-expanded', String(platformsOpen));
@@ -137,15 +125,6 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
           ? action === 'intro' && service === 'hbomax' ? t('hboIntroDetail') : t(`${action}Detail`)
           : capability.reason ? t(capability.reason) : locale === 'es' ? capability.detail : t('featureUnavailable')
         : t('unavailable');
-    }
-    const selectedSupported = Boolean(status?.pageSupported && status.capabilities.selectedEpisode.supported);
-    const count = service && settings ? settings.episodeLists[service].length : 0;
-    element<HTMLButtonElement>('edit-episodes').disabled = !settings || !selectedSupported || saving !== null || platformSaving !== null || languageSaving !== null;
-    element('edit-episodes').hidden = !selectedSupported;
-    element('edit-episodes').textContent = count ? t('editList', { count }) : t('chooseEpisodes');
-    if (selectedSupported) {
-      element('selectedEpisode-detail').textContent = count ? t('selectedCount', { count }) : t('selectFirst');
-      if (!count) switches.selectedEpisode.disabled = true;
     }
     const lastAction = status?.lastAction;
     element('last-action').hidden = !lastAction;
@@ -274,7 +253,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   }
 
   async function saveLanguage(value: unknown) {
-    if (!isUiLanguage(value) || !settings || saving || platformSaving || listSaving || languageSaving) {
+    if (!isUiLanguage(value) || !settings || saving || platformSaving || languageSaving) {
       render();
       return;
     }
@@ -314,50 +293,6 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     }
   }
 
-  function openEpisodes() {
-    if (!settings || !status?.pageSupported || !status.capabilities.selectedEpisode.supported || saving || platformSaving || languageSaving) return;
-    editorService = status.service;
-    editorEpisode = status.episodeId;
-    linksInput.value = settings.episodeLists[editorService].map(id => episodeLink(editorService!, id)).join('\n');
-    setError(null);
-    render();
-    linksInput.focus();
-  }
-
-  async function saveEpisodes() {
-    if (!editorService || listSaving || languageSaving || !settings) return;
-    const service = editorService;
-    const links = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    const ids = links.map(link => episodeIdFromLink(service, link));
-    const episodeIds = validateEpisodeList(service, ids);
-    if (!episodeIds) {
-      setError('invalidLinks', { service: serviceNames[service] });
-      return;
-    }
-    listSaving = true;
-    setError(null);
-    render();
-    try {
-      const response = await send({type:'SET_EPISODE_LIST', service, episodeIds});
-      if (!isSettingsResponse(response)) throw new Error('Save failed');
-      if (!disposed) { settings = response.settings; editorService = null; }
-    } catch { setError('listError'); }
-    finally { listSaving = false; render(); }
-  }
-
-  const editHandler = () => openEpisodes();
-  const saveListHandler = () => { void saveEpisodes(); };
-  const cancelListHandler = () => { if (!listSaving && !languageSaving) { editorService = null; setError(null); render(); } };
-  const addCurrentHandler = () => {
-    if (!editorService || !editorEpisode || listSaving || languageSaving || status?.episodeId !== editorEpisode || status.service !== editorService) return;
-    const link = episodeLink(editorService, editorEpisode);
-    const lines = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    if (!lines.some(line => episodeIdFromLink(editorService!, line) === editorEpisode)) lines.push(link);
-    linksInput.value = lines.join('\n');
-  };
-  const editorHandlers = [['edit-episodes',editHandler], ['save-episodes',saveListHandler], ['cancel-episodes',cancelListHandler], ['add-current-episode',addCurrentHandler]] as const;
-  for (const [id, handler] of editorHandlers) element(id).addEventListener('click',handler);
-
   const handlers = new Map<HTMLInputElement, () => void>();
   for (const key of ['enabled', ...ACTIONS] as const) {
     const input = switches[key];
@@ -371,11 +306,11 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     handlers.set(input, handler);
     input.addEventListener('change', handler);
   }
-  const platformsHandler = () => { if (listSaving || languageSaving) return; editorService = null; platformsOpen = !platformsOpen; render(); };
+  const platformsHandler = () => { platformsOpen = !platformsOpen; render(); };
   const pauseHandler = () => { void togglePause(); };
   const retryHandler = () => { void loadSettings(); void refreshStatus(); };
   const storageHandler = (_changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-    if (area === 'local' && !saving && !platformSaving && !languageSaving && !listSaving) void loadSettings();
+    if (area === 'local' && !saving && !platformSaving && !languageSaving) void loadSettings();
   };
   const languageHandler = () => { void saveLanguage(languageInput.value); };
   languageInput.addEventListener('change', languageHandler);
@@ -399,7 +334,6 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     disposed = true;
     clearInterval(interval);
     for (const [input, handler] of handlers) input.removeEventListener('change', handler);
-    for (const [id, handler] of editorHandlers) element(id).removeEventListener('click', handler);
     languageInput.removeEventListener('change', languageHandler);
     platformsButton.removeEventListener('click', platformsHandler);
     pauseButton.removeEventListener('click', pauseHandler);

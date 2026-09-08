@@ -1,13 +1,12 @@
 # Backlog
 
-La meta es ampliar la comodidad a más plataformas donde exista una integración fiable. Por ahora se trabaja con Crunchyroll y HBO Max, los servicios disponibles para pruebas.
+The goal is broader streaming-service coverage through dependable integrations. Crunchyroll and HBO Max are the services currently available for live testing.
 
-| Prioridad | Trabajo | Condición |
+| Priority | Work | Required evidence |
 | --- | --- | --- |
-| 1 | Cerrar la lista de pruebas de 0.3.1 instalada | Recarga del build y comprobación en los reproductores reales, especialmente final natural y fullscreen |
-| 2 | Selección de episodios en HBO | Obtener un control seguro de avance temprano o una secuencia completa explícita; no inferirla del catálogo parcial |
-| 3 | Otros idiomas y variantes | Evidencia y fixtures por variante antes de habilitar etiquetas nuevas |
-| 4 | Resúmenes de Crunchyroll si el servicio los incorpora | Observar el control real; su Skip Intro documentado no cubre resúmenes |
-| 5 | Nuevas plataformas | Una integración a la vez, acceso de prueba, controles reales y permisos mínimos |
+| 1 | Finish installed playback checks for the current release | Natural ending, fullscreen, pause and navigation on both real players |
+| 2 | Additional player languages and variants | Observe each variant and capture representative fixtures before enabling its controls |
+| 3 | Crunchyroll recaps if a native control becomes available | An actual observed recap control |
+| 4 | Additional streaming platforms | Test access, real playback controls, minimal permissions, one dependable integration at a time |
 
-Créditos y siguiente episodio de HBO, lista explícita de Crunchyroll y última acción en el popup están implementados en 0.3.1. No se planifican tiempos estimados, listas automáticas de relleno, alteración de anuncios/DRM ni sincronización de contenido con un servidor.
+The selected-episode list was removed in 0.3.3 at the user's request and is no longer planned. Estimated timestamps, automated filler classification, ad/DRM changes, and remote viewing-data sync remain out of scope.

@@ -37,7 +37,7 @@
       </label>
 
       <section class="service-section" aria-labelledby="service-heading">
-        <div class="section-heading"><h2 id="service-heading">This tab</h2><span class="version">0.3.2</span></div>
+        <div class="section-heading"><h2 id="service-heading">This tab</h2><span class="version">0.3.3</span></div>
         <div class="page-state" id="page-state" data-state="loading">
           <span class="state-dot" aria-hidden="true"></span>
           <p id="status" role="status">Checking this tab…</p>
@@ -62,12 +62,7 @@
             <span><span class="row-title" id="nextEpisode-label" data-i18n="nextEpisodeLabel">Next episode</span><span class="row-detail" id="nextEpisode-detail">Advances when the video ends.</span></span>
             <input id="nextEpisode" type="checkbox" role="switch" aria-labelledby="nextEpisode-label" aria-describedby="nextEpisode-detail" disabled>
           </label>
-          <label class="toggle-row" for="selectedEpisode">
-            <span><span class="row-title" id="selectedEpisode-label" data-i18n="selectedEpisodeLabel">Skip selected episodes</span><span class="row-detail" id="selectedEpisode-detail">Skips only episodes on your list.</span></span>
-            <input id="selectedEpisode" type="checkbox" role="switch" aria-labelledby="selectedEpisode-label" aria-describedby="selectedEpisode-detail" disabled>
-          </label>
         </div>
-        <button id="edit-episodes" class="small-button" type="button" disabled>Choose episodes</button>
       </section>
 
       <section class="tab-section" id="tab-controls" aria-label="Controls for this tab">
@@ -76,16 +71,6 @@
         <p class="tab-note" id="tab-note">Paused until you resume or close this tab.</p>
       </section>
       </div>
-
-      <section id="episodes-panel" aria-labelledby="episodes-heading" hidden>
-        <h2 id="episodes-heading">Crunchyroll episodes</h2>
-        <p class="page-detail" data-i18n="episodesDetail">Paste up to 100 episode links, one per line. Opening a listed episode activates Next episode if its button is visible. Enable the skip list with its separate toggle.</p>
-        <label class="row-title editor-label" for="episode-links" data-i18n="episodeLinksLabel">Episode links to skip</label>
-        <textarea id="episode-links" rows="7" spellcheck="false" aria-describedby="episode-list-help"></textarea>
-        <p class="tab-note" id="episode-list-help" data-i18n="episodeListHelp">Only your selected IDs are saved. No viewing history is collected and no filler episodes are inferred.</p>
-        <button id="add-current-episode" class="small-button" type="button" data-i18n="addCurrent">Add current episode</button>
-        <div class="editor-actions"><button id="save-episodes" type="button" data-i18n="saveList">Save list</button><button id="cancel-episodes" type="button" data-i18n="back">Back</button></div>
-      </section>
 
       <div class="error" id="error-panel" hidden>
         <p id="error" role="alert"></p>

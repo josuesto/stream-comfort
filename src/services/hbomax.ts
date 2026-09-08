@@ -34,7 +34,6 @@ export function createHboMaxAdapter(
     inspect(): PlaybackSnapshot {
       const spanish = doc.documentElement.lang.toLowerCase().split('-')[0] === 'es';
       const capabilities: Capabilities = {
-        selectedEpisode: {supported:false, reason:'hboEpisodeListUnavailable', detail:'HBO no ofrece un botón siguiente durante todo el episodio. Su catálogo carga solo parte de la temporada.'},
         intro: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir intro».' : 'El control de intro solo está verificado en español.'},
         recap: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir resumen».' : 'El control de resumen solo está verificado en español.'},
         credits: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Avanza cuando HBO ofrece «Siguiente episodio» durante los créditos. Puede omitir escenas finales.' : 'El aviso de siguiente episodio solo está verificado en español.'},

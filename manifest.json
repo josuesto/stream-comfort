@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Stream Comfort",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "minimum_chrome_version": "120",
   "description": "Customize what gets skipped while streaming. Supports Crunchyroll and HBO Max, with more platforms planned.",
   "permissions": [

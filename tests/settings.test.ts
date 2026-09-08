@@ -1,13 +1,29 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, normalizeSettings, updatePlatform, updateSetting, updateLanguage } from '../src/shared/settings';
+import { defaultSettings, normalizeSettings, hasRetiredEpisodeSettings, updatePlatform, updateSetting, updateLanguage } from '../src/shared/settings';
 
 describe('local preferences', () => {
-  it('adds English to older preferences without resetting playback choices or episode lists', () => {
+  it('discards retired episode selections without changing current preferences', () => {
+    const current = defaultSettings();
+    current.language = 'es';
+    current.enabled = false;
+    current.platforms.hbomax = false;
+    current.services.crunchyroll.credits = true;
+    const legacy = {
+      ...current, episodeLists: { crunchyroll: ['EPISODE01'], hbomax: [] },
+      services: { ...current.services, crunchyroll: { ...current.services.crunchyroll, selectedEpisode: true } },
+    };
+    expect(hasRetiredEpisodeSettings(legacy)).toBe(true);
+    expect(normalizeSettings(legacy)).toEqual(current);
+    expect(hasRetiredEpisodeSettings(current)).toBe(false);
+    expect(hasRetiredEpisodeSettings({ ...legacy, version: 2 })).toBe(false);
+    expect(() => updateSetting(current, 'selectedEpisode' as never, true)).toThrow('Invalid setting');
+  });
+
+  it('adds English to older preferences without resetting playback choices', () => {
     const { language: _language, ...previous } = defaultSettings();
     previous.enabled = false;
     previous.platforms.hbomax = false;
     previous.services.crunchyroll.credits = true;
-    previous.episodeLists.crunchyroll = ['EPISODE01'];
     expect(normalizeSettings(previous)).toEqual({ ...previous, language: 'en' });
   });
 
@@ -31,10 +47,9 @@ describe('local preferences', () => {
       language: 'en',
       enabled: true,
       platforms: { crunchyroll: true, hbomax: true },
-      episodeLists: { crunchyroll: [], hbomax: [] },
       services: {
-        crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
-        hbomax: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
+        crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false },
+        hbomax: { intro: true, recap: true, credits: false, nextEpisode: false },
       },
     });
     expect(normalizeSettings(undefined)).toEqual(defaultSettings());
@@ -48,10 +63,9 @@ describe('local preferences', () => {
       version: 1, enabled: false,
       language: 'en',
       platforms: { crunchyroll: true, hbomax: true },
-      episodeLists: { crunchyroll: [], hbomax: [] },
       services: {
-        crunchyroll: { intro: false, recap: true, credits: false, nextEpisode: true, selectedEpisode: false },
-        hbomax: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
+        crunchyroll: { intro: false, recap: true, credits: false, nextEpisode: true },
+        hbomax: { intro: true, recap: true, credits: false, nextEpisode: false },
       },
     });
   });
@@ -67,13 +81,13 @@ describe('local preferences', () => {
   it('migrates existing version 1 preferences without changing the original service or global switch', () => {
     const previous = {
       version: 1, enabled: false,
-      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true, selectedEpisode: false } },
+      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true } },
     };
     const next = normalizeSettings(previous);
     expect(next.version).toBe(1);
     expect(next.enabled).toBe(false);
     expect(next.services.crunchyroll).toEqual(previous.services.crunchyroll);
-    expect(next.services.hbomax).toEqual({ intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false });
+    expect(next.services.hbomax).toEqual({ intro: true, recap: true, credits: false, nextEpisode: false });
     expect(next.platforms).toEqual({ crunchyroll: true, hbomax: true });
     expect(previous.services).not.toHaveProperty('hbomax');
   });
@@ -82,18 +96,18 @@ describe('local preferences', () => {
     const next = normalizeSettings({
       version: 1, enabled: true,
       services: {
-        crunchyroll: { intro: false, recap: true, credits: true, nextEpisode: false, selectedEpisode: false },
-        hbomax: { intro: true, recap: false, credits: false, nextEpisode: true, selectedEpisode: false },
+        crunchyroll: { intro: false, recap: true, credits: true, nextEpisode: false },
+        hbomax: { intro: true, recap: false, credits: false, nextEpisode: true },
       },
     });
-    expect(next.services.crunchyroll).toEqual({ intro: false, recap: true, credits: true, nextEpisode: false, selectedEpisode: false });
-    expect(next.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: true, selectedEpisode: false });
+    expect(next.services.crunchyroll).toEqual({ intro: false, recap: true, credits: true, nextEpisode: false });
+    expect(next.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: true });
   });
 
   it('rejects inherited service objects as well as inherited action values', () => {
     const next = normalizeSettings({
       version: 1, enabled: true,
-      services: Object.create({ hbomax: { credits: true, nextEpisode: true, selectedEpisode: false } }),
+      services: Object.create({ hbomax: { credits: true, nextEpisode: true } }),
     });
     expect(next.services.hbomax).toEqual(defaultSettings().services.hbomax);
   });
@@ -105,7 +119,7 @@ describe('local preferences', () => {
 
   it('does not accept inherited preferences', () => {
     const settings = normalizeSettings({
-      version: 1, services: { crunchyroll: Object.create({ credits: true, nextEpisode: true, selectedEpisode: false }) },
+      version: 1, services: { crunchyroll: Object.create({ credits: true, nextEpisode: true }) },
     });
     expect(settings.services.crunchyroll.credits).toBe(false);
     expect(settings.services.crunchyroll.nextEpisode).toBe(false);

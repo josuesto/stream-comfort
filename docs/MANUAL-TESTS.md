@@ -1,29 +1,16 @@
-# Lista manual breve de 0.3.2
+# Manual checklist for 0.3.3
 
-Ejecutar con la extensión instalada en Chrome 120+, Crunchyroll es-es y HBO es-419. Registrar servicio, versión, control visible y resultado. Las casillas siguen pendientes; las inspecciones ya realizadas están en [VERIFICATION.md](VERIFICATION.md).
+Run with the extension installed in Chrome 120+, Crunchyroll's es-es player and HBO's es-419 player. Record service, extension version, visible control, and result. Fixture results do not mark installed playback checks as passed.
 
-Antes de probar el avance de la extensión, revisar el autoplay nativo del servicio para distinguir ambos. Créditos, final y lista deben empezar apagados. Tras buscar o pausar manualmente, usar **Reanudar en esta pestaña** si se quiere probar automatización.
+- [ ] Reload the extension and streaming pages; confirm version 0.3.3. The popup has only intro, recap, credits, and next-episode actions. No episode-list row or editor remains in either English or Spanish.
+- [ ] Existing language and action/platform preferences survive the update. Credits and next episode are off on a fresh install. Older episode lists never cause an early advance.
+- [ ] Change Language, close/reopen the popup, and restart Chrome. Verify persistence, Platforms, translated status/errors, keyboard access, and no periodic popup flicker or focus/scroll loss.
+- [ ] Outside a supported episode, the popup explains the limitation and still offers global, platform, and language controls.
+- [ ] Test intro on/off on both services and recap on/off on HBO. Only one attempt per control; ignore HBO's generic promotional Skip button.
+- [ ] Enable credits: Crunchyroll advances only with its credits cue and next control visible; HBO uses its native next-episode offer. Repeat with credits off.
+- [ ] Enable only Next episode and let the video end naturally. No early credit skip; advance only if the genuine next control is visible and enabled. Repeat with the option off. Check the service's own autoplay separately to distinguish its actions.
+- [ ] Pause, seek, or skip manually; on HBO cancel the countdown. Automation holds until explicitly resumed or a new episode starts. Volume and fullscreen alone do not hold automation.
+- [ ] Pause the tab from the popup, navigate, and reload the streaming page. The pause persists and is isolated from other tabs. Extension reloads/updates and browser restarts clear Chrome session storage.
+- [ ] Change episodes, navigate back/forward, and try fullscreen. No stale control clicks during media replacement, no duplicated advancement, and no automation in background tabs.
 
-- [ ] Recargar la extensión, confirmar versión 0.3.2 y abrir su popup sin errores. Fuera de un episodio debe explicar la falta de compatibilidad y permitir los interruptores global/plataformas.
-- [ ] Elegir ajustes distintos por servicio, apagar/encender global y plataformas, cerrar/reabrir Chrome. Las elecciones deben conservarse sin activar avances nuevos.
-- [ ] En ambos servicios, comprobar intro encendida y apagada. Un clic máximo y «Última acción» coherente. En HBO repetir con resumen, seguido de intro; el «Saltar» promocional debe ignorarse.
-- [ ] Activar créditos. Crunchyroll solo debe avanzar cuando aparecen «Saltar créditos» y siguiente visibles; HBO cuando ofrece su siguiente episodio durante créditos. Repetir apagado.
-- [ ] Activar solo siguiente episodio. Dejar terminar el vídeo: nunca adelantar créditos; solo intentar avanzar si el servicio mantiene visible y habilitado su botón. Repetir con la opción apagada y autoplay nativo apagado.
-- [ ] En Crunchyroll, guardar dos enlaces exactos en la lista. No debe activarse al guardarla. Encenderla y abrir un episodio elegido: un avance máximo mediante el botón normal; uno no elegido no debe omitirse. Vaciarla debe apagarla. No debe actuar si falta el botón siguiente.
-- [ ] Pausar/buscar/saltar manualmente; en HBO cancelar la cuenta atrás. Debe suspender automatización del episodio hasta reanudar desde popup o cambiar de episodio. Volumen y fullscreen no deben suspenderla.
-- [ ] Pausar desde el popup, navegar y recargar: debe continuar la pausa. Otra pestaña no debe heredarla. Apagar/encender una plataforma no debe quitarla.
-- [ ] Cambiar episodio y usar atrás/adelante. Nunca clicar controles anteriores mientras carga el nuevo vídeo. Comprobar un salto permitido en pantalla completa y ausencia de acciones en segundo plano.
-- [ ] Recorrer popup y editor con teclado, guardar/cancelar, probar enlace inválido, cambiar de episodio durante edición. Guardar debe mantener el servicio original; añadir el episodio anterior debe quedar deshabilitado después de navegar.
-
-No marcar una ejecución real como aprobada por un resultado simulado. No publicar datos de cuenta, fuentes de vídeo ni historial.
-
-- [ ] Abrir el popup durante 30 segundos, cambiar entre Plataformas y controles, y editar una lista. No debe saltar de tamaño, parpadear periódicamente ni perder el foco, la selección de texto o la posición de desplazamiento.
-
-## Language option
-
-- [ ] After updating to 0.3.2, the popup starts in English if no language was previously saved. Existing skip and platform choices stay intact.
-- [ ] Select Español, close and reopen the popup, then restart Chrome. Spanish persists. Switch back to English and check labels, Platforms, status, errors, and the episode editor.
-- [ ] Change language while editing an episode list. The draft remains; no episodes are skipped or enabled by the language change. The selector is also available on an unsupported page.
-- [ ] Leave each language open briefly and switch panels: the popup retains its outer size and scrolls internally without periodic flicker.
-
-The user has confirmed the original popup stutter stopped after the 0.3.1 fix. This does not mark every installed playback check above as completed.
+The user confirmed the original popup stutter stopped after the 0.3.1 fix. That confirmation does not certify every installed playback scenario above. See [VERIFICATION.md](VERIFICATION.md).

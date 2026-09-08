@@ -78,6 +78,29 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(api.storage.local.set).not.toHaveBeenCalled();
   });
 
+  it('removes legacy lists once while preserving current preferences and tab pauses', async () => {
+    const current = defaultSettings();
+    current.language = 'es';
+    current.enabled = false;
+    current.platforms.hbomax = false;
+    current.services.crunchyroll.credits = true;
+    localData.settings = {
+      ...current, episodeLists: { crunchyroll: ['EPISODE01'], hbomax: [] },
+      services: { ...current.services, crunchyroll: { ...current.services.crunchyroll, selectedEpisode: true } },
+    };
+    sessionData['pause:17'] = true;
+    expect((await request({ type: 'GET_SETTINGS' })).settings).toEqual(current);
+    expect(localData.settings).toEqual(current);
+    expect(sessionData['pause:17']).toBe(true);
+    await request({ type: 'GET_SETTINGS' });
+    expect(api.storage.local.set).toHaveBeenCalledOnce();
+    expect((await request({ type: 'SET_SETTING', key: 'selectedEpisode', value: true, service: 'crunchyroll' })).ok).toBe(false);
+    const respond = vi.fn();
+    expect(listener({ type: 'SET_EPISODE_LIST', service: 'crunchyroll', episodeIds: ['EPISODE01'] }, popup, respond)).toBeUndefined();
+    expect(respond).not.toHaveBeenCalled();
+    expect(api.storage.local.set).toHaveBeenCalledOnce();
+  });
+
   it('keeps language across worker restarts and concurrent platform/action edits', async () => {
     await Promise.all([
       request({ type: 'SET_LANGUAGE', language: 'es' }),
@@ -102,19 +125,6 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(api.storage.local.set).not.toHaveBeenCalled();
   });
 
-  it('saves selected IDs from the popup only, rejects invalid input and serializes other choices', async () => {
-    const message = {type:'SET_EPISODE_LIST',service:'crunchyroll',episodeIds:['EPISODE01','EPISODE01']};
-    expect((await request(message,content)).ok).toBe(false);
-    expect((await request(message,hboContent)).ok).toBe(false);
-    expect((await request({...message,episodeIds:['EPISODE01','bad id']})).ok).toBe(false);
-    expect(api.storage.local.set).not.toHaveBeenCalled();
-    await Promise.all([request(message),request({type:'SET_SETTING',key:'intro',value:false,service:'hbomax'})]);
-    const result = await request({type:'GET_SETTINGS'});
-    expect(result.settings?.episodeLists.crunchyroll).toEqual(['EPISODE01']);
-    expect(result.settings?.services.crunchyroll.selectedEpisode).toBe(false);
-    expect(result.settings?.services.hbomax.intro).toBe(false);
-  });
-
   it('serializes simultaneous edits so independent settings are not lost', async () => {
     await Promise.all([
       request({ type: 'SET_SETTING', key: 'enabled', value: false }),
@@ -125,15 +135,15 @@ describe('MV3 settings and temporary tab pause', () => {
     ]);
     const result = await request({ type: 'GET_SETTINGS' });
     expect(result.settings?.enabled).toBe(false);
-    expect(result.settings?.services.crunchyroll).toEqual({ intro: false, recap: true, credits: false, nextEpisode: true, selectedEpisode: false });
-    expect(result.settings?.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: false, selectedEpisode: false });
+    expect(result.settings?.services.crunchyroll).toEqual({ intro: false, recap: true, credits: false, nextEpisode: true });
+    expect(result.settings?.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: false });
     expect(result.settings?.platforms).toEqual({ crunchyroll: true, hbomax: false });
   });
 
   it('reads old single-service preferences without overwriting them and migrates on the next edit', async () => {
     const previous = {
       version: 1, enabled: false,
-      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true, selectedEpisode: false } },
+      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true } },
     };
     localData.settings = previous;
     const read = await request({ type: 'GET_SETTINGS' }, hboContent);

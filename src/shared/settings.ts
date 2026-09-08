@@ -1,5 +1,4 @@
 import { ACTIONS, SERVICES, isServiceId, isUiLanguage, type Action, type ServiceId, type Settings, type UiLanguage } from './types';
-import { validateEpisodeList } from './episodes';
 
 export const SETTINGS_KEY = 'settings';
 export type SettingKey = 'enabled' | Action;
@@ -11,10 +10,9 @@ export function defaultSettings(): Settings {
     language: 'en',
     enabled: true,
     platforms: { crunchyroll: true, hbomax: true },
-    episodeLists: { crunchyroll: [], hbomax: [] },
     services: {
-      crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
-      hbomax: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
+      crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false },
+      hbomax: { intro: true, recap: true, credits: false, nextEpisode: false },
     },
   };
 }
@@ -25,6 +23,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 function own(record: Record<string, unknown>, key: string): unknown {
   return Object.prototype.hasOwnProperty.call(record, key) ? record[key] : undefined;
+}
+
+/** Retired list preferences are discarded on normalization and removed on read. */
+export function hasRetiredEpisodeSettings(value: unknown): boolean {
+  if (!isRecord(value) || own(value, 'version') !== 1) return false;
+  if (Object.prototype.hasOwnProperty.call(value, 'episodeLists')) return true;
+  const services = own(value, 'services');
+  if (!isRecord(services)) return false;
+  return SERVICES.some(id => {
+    const service = own(services, id);
+    return isRecord(service) && Object.prototype.hasOwnProperty.call(service, 'selectedEpisode');
+  });
 }
 
 /** Unknown schemas fail closed. Only explicit booleans can enable an action. */
@@ -41,10 +51,7 @@ export function normalizeSettings(value: unknown): Settings {
   if (typeof enabled === 'boolean') settings.enabled = enabled;
   const services = own(value, 'services');
   const platforms = own(value, 'platforms');
-  const lists = own(value, 'episodeLists');
   for (const serviceId of SERVICES) {
-    const list = isRecord(lists) ? validateEpisodeList(serviceId, own(lists, serviceId)) : null;
-    if (list) settings.episodeLists[serviceId] = list;
     const platformValue = isRecord(platforms) ? own(platforms, serviceId) : undefined;
     if (typeof platformValue === 'boolean') settings.platforms[serviceId] = platformValue;
     const service = isRecord(services) ? own(services, serviceId) : undefined;
@@ -53,19 +60,8 @@ export function normalizeSettings(value: unknown): Settings {
       const actionValue = own(service, action);
       if (typeof actionValue === 'boolean') settings.services[serviceId][action] = actionValue;
     }
-    if (!list) settings.services[serviceId].selectedEpisode = false;
   }
   return settings;
-}
-
-export function updateEpisodeList(settings: Settings, service: ServiceId, episodeIds: unknown): Settings {
-  if (!isServiceId(service)) throw new TypeError('Invalid service');
-  const list = validateEpisodeList(service, episodeIds);
-  if (!list) throw new TypeError('Invalid episode selection');
-  const next = normalizeSettings(settings);
-  next.episodeLists[service] = list;
-  if (!list.length) next.services[service].selectedEpisode = false;
-  return next;
 }
 
 /** Apply one validated setting without mutating the caller's object. */
