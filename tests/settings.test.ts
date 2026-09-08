@@ -1,10 +1,34 @@
 import { describe, expect, it } from 'vitest';
-import { defaultSettings, normalizeSettings, updatePlatform, updateSetting } from '../src/shared/settings';
+import { defaultSettings, normalizeSettings, updatePlatform, updateSetting, updateLanguage } from '../src/shared/settings';
 
 describe('local preferences', () => {
+  it('adds English to older preferences without resetting playback choices or episode lists', () => {
+    const { language: _language, ...previous } = defaultSettings();
+    previous.enabled = false;
+    previous.platforms.hbomax = false;
+    previous.services.crunchyroll.credits = true;
+    previous.episodeLists.crunchyroll = ['EPISODE01'];
+    expect(normalizeSettings(previous)).toEqual({ ...previous, language: 'en' });
+  });
+
+  it('persists only supported explicit languages and updates language immutably', () => {
+    const previous = defaultSettings();
+    const spanish = updateLanguage(previous, 'es');
+    expect(normalizeSettings(spanish)).toEqual({ ...previous, language: 'es' });
+    expect(previous.language).toBe('en');
+    expect(updateLanguage(spanish, 'en')).toEqual(previous);
+    for (const language of ['fr', '', 'ES', null, true, {}]) {
+      expect(normalizeSettings({ ...spanish, language }).language).toBe('en');
+      expect(() => updateLanguage(spanish, language as never)).toThrow('Invalid language');
+    }
+    const { language: _language, ...legacy } = previous;
+    expect(normalizeSettings(Object.assign(Object.create({ language: 'es' }), legacy)).language).toBe('en');
+  });
+
   it('defaults to intro/recap skipping, with both forms of advancement off', () => {
     expect(defaultSettings()).toEqual({
       version: 1,
+      language: 'en',
       enabled: true,
       platforms: { crunchyroll: true, hbomax: true },
       episodeLists: { crunchyroll: [], hbomax: [] },
@@ -22,6 +46,7 @@ describe('local preferences', () => {
       services: { crunchyroll: { intro: false, nextEpisode: true, foreign: true }, other: {} },
     })).toEqual({
       version: 1, enabled: false,
+      language: 'en',
       platforms: { crunchyroll: true, hbomax: true },
       episodeLists: { crunchyroll: [], hbomax: [] },
       services: {

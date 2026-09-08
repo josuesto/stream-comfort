@@ -18,7 +18,7 @@ export function episodeIdFromUrl(value: string): string | null {
 const capabilities: Capabilities = {
   selectedEpisode: { supported: true, detail: 'Omite solo los episodios de tu lista usando el botón siguiente visible.' },
   intro: { supported: true, detail: 'Control «Saltar intro» verificado en español.' },
-  recap: { supported: false, detail: 'Crunchyroll no ofrece un control de resumen en el reproductor inspeccionado.' },
+  recap: { supported: false, reason: 'crRecapUnavailable', detail: 'Crunchyroll no ofrece un control de resumen en el reproductor inspeccionado.' },
   credits: { supported: true, detail: 'Requiere «Saltar créditos» y el botón siguiente visibles. Puede omitir escenas finales.' },
   nextEpisode: { supported: true, detail: 'Solo al finalizar realmente el vídeo y con el botón siguiente visible.' },
 };
@@ -40,8 +40,8 @@ export function createCrunchyrollAdapter(
       const spanish = doc.documentElement.lang.split('-')[0].toLowerCase() === 'es';
       const localCapabilities: Capabilities = spanish ? capabilities : {
         ...capabilities,
-        intro: {supported:false, detail:'Esta versión reconoce el botón de intro en español.'},
-        credits: {supported:false, detail:'Esta versión reconoce el aviso de créditos en español.'},
+        intro: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el botón de intro en español.'},
+        credits: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el aviso de créditos en español.'},
       };
       const empty: PlaybackSnapshot = { episodeId, player: null, video: null, candidates: {}, capabilities: localCapabilities };
       if (!episodeId) return empty;

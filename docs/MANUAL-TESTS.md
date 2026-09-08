@@ -1,10 +1,10 @@
-# Lista manual breve de 0.3.1
+# Lista manual breve de 0.3.2
 
 Ejecutar con la extensión instalada en Chrome 120+, Crunchyroll es-es y HBO es-419. Registrar servicio, versión, control visible y resultado. Las casillas siguen pendientes; las inspecciones ya realizadas están en [VERIFICATION.md](VERIFICATION.md).
 
 Antes de probar el avance de la extensión, revisar el autoplay nativo del servicio para distinguir ambos. Créditos, final y lista deben empezar apagados. Tras buscar o pausar manualmente, usar **Reanudar en esta pestaña** si se quiere probar automatización.
 
-- [ ] Recargar la extensión, confirmar versión 0.3.1 y abrir su popup sin errores. Fuera de un episodio debe explicar la falta de compatibilidad y permitir los interruptores global/plataformas.
+- [ ] Recargar la extensión, confirmar versión 0.3.2 y abrir su popup sin errores. Fuera de un episodio debe explicar la falta de compatibilidad y permitir los interruptores global/plataformas.
 - [ ] Elegir ajustes distintos por servicio, apagar/encender global y plataformas, cerrar/reabrir Chrome. Las elecciones deben conservarse sin activar avances nuevos.
 - [ ] En ambos servicios, comprobar intro encendida y apagada. Un clic máximo y «Última acción» coherente. En HBO repetir con resumen, seguido de intro; el «Saltar» promocional debe ignorarse.
 - [ ] Activar créditos. Crunchyroll solo debe avanzar cuando aparecen «Saltar créditos» y siguiente visibles; HBO cuando ofrece su siguiente episodio durante créditos. Repetir apagado.
@@ -18,3 +18,12 @@ Antes de probar el avance de la extensión, revisar el autoplay nativo del servi
 No marcar una ejecución real como aprobada por un resultado simulado. No publicar datos de cuenta, fuentes de vídeo ni historial.
 
 - [ ] Abrir el popup durante 30 segundos, cambiar entre Plataformas y controles, y editar una lista. No debe saltar de tamaño, parpadear periódicamente ni perder el foco, la selección de texto o la posición de desplazamiento.
+
+## Language option
+
+- [ ] After updating to 0.3.2, the popup starts in English if no language was previously saved. Existing skip and platform choices stay intact.
+- [ ] Select Español, close and reopen the popup, then restart Chrome. Spanish persists. Switch back to English and check labels, Platforms, status, errors, and the episode editor.
+- [ ] Change language while editing an episode list. The draft remains; no episodes are skipped or enabled by the language change. The selector is also available on an unsupported page.
+- [ ] Leave each language open briefly and switch panels: the popup retains its outer size and scrolls internally without periodic flicker.
+
+The user has confirmed the original popup stutter stopped after the 0.3.1 fix. This does not mark every installed playback check above as completed.

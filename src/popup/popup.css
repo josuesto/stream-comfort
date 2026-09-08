@@ -16,7 +16,7 @@ html { width: 350px; height: 600px; overflow: hidden; }
 body { margin: 0; width: 100%; height: 100%; overflow-y: auto; scrollbar-gutter: stable; }
 main { padding: 16px 20px 14px; }
 h1, h2, p { margin: 0; }
-button, input { font: inherit; }
+button, input, select { font: inherit; }
 [hidden] { display: none !important; }
 .wordmark { display: flex; align-items: center; gap: 10px; }
 .brand-mark { color: var(--accent); font-size: 27px; font-weight: 700; line-height: 1; letter-spacing: -5px; padding-right: 4px; }
@@ -34,7 +34,7 @@ input[role="switch"]:checked { background: var(--accent); border-color: var(--ac
 input[role="switch"]:checked::before { transform: translateX(15px); background: #2c231d; }
 input[role="switch"]:disabled { cursor: default; opacity: .42; }
 .toggle-row:has(input:disabled) { cursor: default; }
-input:focus-visible, button:focus-visible { outline: 2px solid #ffceb0; outline-offset: 4px; }
+input:focus-visible, button:focus-visible, select:focus-visible { outline: 2px solid #ffceb0; outline-offset: 4px; }
 .section-heading { display: flex; align-items: center; justify-content: space-between; margin-top: 12px; }
 h2 { font-size: 14px; line-height: 1.3; font-weight: 650; }
 .version { color: var(--muted); font-size: 10px; letter-spacing: 1px; }
@@ -66,3 +66,7 @@ footer { color: #b6aa9c; font-size: 10px; line-height: 1.5; padding-top: 10px; }
 textarea { width: 100%; resize: vertical; min-height: 130px; max-height: 220px; background: #181715; color: #f3eee7; border: 1px solid #777066; border-radius: 4px; padding: 8px; font: 11px/1.6 "Segoe UI", sans-serif; overflow-wrap: anywhere; }
 textarea:focus-visible { outline: 2px solid #ffceb0; outline-offset: 2px; }
 .editor-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+.language-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 11px; }
+.language-row select { color: #f3eee7; background: #302a25; border: 1px solid #746555; border-radius: 4px; padding: 5px 8px; }
+.language-row select:disabled { opacity: .5; }

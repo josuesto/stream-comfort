@@ -1,4 +1,4 @@
-import { ACTIONS, SERVICES, isServiceId, type Action, type ServiceId, type Settings } from './types';
+import { ACTIONS, SERVICES, isServiceId, isUiLanguage, type Action, type ServiceId, type Settings, type UiLanguage } from './types';
 import { validateEpisodeList } from './episodes';
 
 export const SETTINGS_KEY = 'settings';
@@ -8,6 +8,7 @@ export type SettingKey = 'enabled' | Action;
 export function defaultSettings(): Settings {
   return {
     version: 1,
+    language: 'en',
     enabled: true,
     platforms: { crunchyroll: true, hbomax: true },
     episodeLists: { crunchyroll: [], hbomax: [] },
@@ -35,6 +36,8 @@ export function normalizeSettings(value: unknown): Settings {
     return settings;
   }
   const enabled = own(value, 'enabled');
+  const language = own(value, 'language');
+  if (isUiLanguage(language)) settings.language = language;
   if (typeof enabled === 'boolean') settings.enabled = enabled;
   const services = own(value, 'services');
   const platforms = own(value, 'platforms');
@@ -81,5 +84,13 @@ export function updatePlatform(settings: Settings, service: ServiceId, enabled: 
   if (!isServiceId(service) || typeof enabled !== 'boolean') throw new TypeError('Invalid platform setting');
   const next = normalizeSettings(settings);
   next.platforms[service] = enabled;
+  return next;
+}
+
+/** The popup language is independent of the streaming player's language. */
+export function updateLanguage(settings: Settings, language: UiLanguage): Settings {
+  if (!isUiLanguage(language)) throw new TypeError('Invalid language');
+  const next = normalizeSettings(settings);
+  next.language = language;
   return next;
 }

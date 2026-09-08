@@ -1,4 +1,10 @@
-# Versión 0.3.1: avance de HBO y selección de episodios
+# Version 0.3.2: English and Spanish popup
+
+This update adds a local Language selector with English as the default. Acceptance: all popup labels, statuses, errors, capability explanations, and editor text switch between English and Spanish; the choice persists; upgrading and switching preserve playback preferences, selected episode IDs, and manual pauses; the fixed-size, quiet idle popup remains intact. Tests and a compiled Chrome preview cover these criteria. Native installation checks remain listed separately.
+
+The popup language is independent of the service player's locale. Service support and playback behavior remain scoped to the controls already observed below.
+
+## Playback scope retained from 0.3.1
 
 La versión añade la oferta nativa de siguiente episodio de HBO a dos opciones distintas: créditos y final real. Implementa una lista explícita de episodios de Crunchyroll sin inferir una secuencia de catálogo. Conserva los interruptores global, de plataforma y de cada acción.
 

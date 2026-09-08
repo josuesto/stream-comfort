@@ -34,11 +34,11 @@ export function createHboMaxAdapter(
     inspect(): PlaybackSnapshot {
       const spanish = doc.documentElement.lang.toLowerCase().split('-')[0] === 'es';
       const capabilities: Capabilities = {
-        selectedEpisode: {supported:false, detail:'HBO no ofrece un botón siguiente durante todo el episodio. Su catálogo carga solo parte de la temporada.'},
-        intro: {supported:spanish, detail:spanish ? 'Activa el control «Omitir intro».' : 'El control de intro solo está verificado en español.'},
-        recap: {supported:spanish, detail:spanish ? 'Activa el control «Omitir resumen».' : 'El control de resumen solo está verificado en español.'},
-        credits: {supported:spanish, detail:spanish ? 'Avanza cuando HBO ofrece «Siguiente episodio» durante los créditos. Puede omitir escenas finales.' : 'El aviso de siguiente episodio solo está verificado en español.'},
-        nextEpisode: {supported:spanish, detail:spanish ? 'Avanza al terminar el vídeo si HBO mantiene visible su botón siguiente.' : 'El aviso de siguiente episodio solo está verificado en español.'},
+        selectedEpisode: {supported:false, reason:'hboEpisodeListUnavailable', detail:'HBO no ofrece un botón siguiente durante todo el episodio. Su catálogo carga solo parte de la temporada.'},
+        intro: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir intro».' : 'El control de intro solo está verificado en español.'},
+        recap: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir resumen».' : 'El control de resumen solo está verificado en español.'},
+        credits: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Avanza cuando HBO ofrece «Siguiente episodio» durante los créditos. Puede omitir escenas finales.' : 'El aviso de siguiente episodio solo está verificado en español.'},
+        nextEpisode: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Avanza al terminar el vídeo si HBO mantiene visible su botón siguiente.' : 'El aviso de siguiente episodio solo está verificado en español.'},
       };
       const episodeId = hboEpisodeIdFromUrl(getUrl());
       const empty: PlaybackSnapshot = {episodeId, player:null, video:null, candidates:{}, capabilities};

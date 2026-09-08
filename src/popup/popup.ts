@@ -1,18 +1,11 @@
-import { ACTIONS, SERVICES, isServiceId, type Action, type Request, type ServiceId, type Settings, type TabStatus } from '../shared/types';
+import { ACTIONS, SERVICES, CAPABILITY_REASONS, isServiceId, isUiLanguage, type UiLanguage, type Action, type Request, type ServiceId, type Settings, type TabStatus } from '../shared/types';
+import { translate, type MessageKey, type MessageParams } from './i18n';
 import { episodeIdFromLink, episodeLink, validEpisodeId, validateEpisodeList } from '../shared/episodes';
 
 type PopupChrome = Pick<typeof chrome, 'tabs' | 'runtime' | 'storage'>;
 type SettingKey = 'enabled' | Action;
 type SettingsResponse = { ok: true; settings: Settings };
 
-const descriptions: Record<Action, string> = {
-  intro: 'Activa el botón «Saltar intro».',
-  recap: 'Activa el botón de resumen.',
-  credits: 'Avanza durante los créditos. Puede omitir escenas finales.',
-  nextEpisode: 'Avanza cuando termine el vídeo.',
-  selectedEpisode: 'Omite solo los episodios de tu lista.',
-};
-const unavailable = 'Abre un episodio compatible para configurar esta función.';
 const serviceNames: Record<ServiceId, string> = { crunchyroll: 'Crunchyroll', hbomax: 'HBO Max' };
 
 function isObject(value: unknown): value is Record<string, unknown> {
@@ -22,7 +15,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function isSettingsResponse(value: unknown): value is SettingsResponse {
   if (!isObject(value) || value.ok !== true || !isObject(value.settings)) return false;
   const settings = value.settings;
-  if (settings.version !== 1 || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms) || !isObject(settings.episodeLists)) return false;
+  if (settings.version !== 1 || !isUiLanguage(settings.language) || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms) || !isObject(settings.episodeLists)) return false;
   const services = settings.services;
   const platforms = settings.platforms;
   const lists = settings.episodeLists;
@@ -41,7 +34,8 @@ function isTabStatus(value: unknown): value is TabStatus {
     && (value.lastAction === null || ACTIONS.includes(value.lastAction as Action))
     && ACTIONS.every(action => {
       const capability = capabilities[action];
-      return isObject(capability) && typeof capability.supported === 'boolean' && typeof capability.detail === 'string';
+      return isObject(capability) && typeof capability.supported === 'boolean' && typeof capability.detail === 'string'
+        && (capability.reason === undefined || CAPABILITY_REASONS.includes(capability.reason as never));
     });
 }
 
@@ -51,7 +45,8 @@ function sameStatus(a: TabStatus | null, b: TabStatus | null): boolean {
     && a.pageSupported === b.pageSupported && a.playerReady === b.playerReady
     && a.paused === b.paused && a.manualHold === b.manualHold && a.lastAction === b.lastAction
     && ACTIONS.every(action => a.capabilities[action].supported === b.capabilities[action].supported
-      && a.capabilities[action].detail === b.capabilities[action].detail);
+      && a.capabilities[action].detail === b.capabilities[action].detail
+      && a.capabilities[action].reason === b.capabilities[action].reason);
 }
 
 /** Poll only while open. Request the adapter's current ID; never scan browsing history. */
@@ -65,6 +60,10 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   const platformSwitches = Object.fromEntries(SERVICES.map(service => [service, element<HTMLInputElement>(`platform-${service}`)])) as Record<ServiceId, HTMLInputElement>;
   const pauseButton = element<HTMLButtonElement>('tab-pause');
   const platformsButton = element<HTMLButtonElement>('platforms-button');
+  const languageInput = element<HTMLSelectElement>('language');
+  let languageSaving: UiLanguage | null = null;
+  let renderedLanguage: UiLanguage | null = null;
+  let error: { key: MessageKey; params: MessageParams } | null = null;
   let settings: Settings | null = null;
   let status: TabStatus | null = null;
   let tabId: number | null = null;
@@ -82,98 +81,117 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   const linksInput = element<HTMLTextAreaElement>('episode-links');
 
   const send = (message: Request): Promise<unknown> => api.runtime.sendMessage(message);
-  function setError(message: string) {
-    element('error').textContent = message;
-    element('error-panel').hidden = !message;
+  const language = (): UiLanguage => languageSaving ?? settings?.language ?? 'en';
+  const t = (key: MessageKey, params?: MessageParams) => translate(language(), key, params);
+  function renderError() {
+    if (disposed) return;
+    element('error').textContent = error ? t(error.key, error.params) : '';
+    element('error-panel').hidden = !error;
+  }
+  function setError(key: MessageKey | null, params: MessageParams = {}) {
+    error = key ? { key, params } : null;
+    renderError();
   }
 
   function render() {
     if (disposed) return;
+    const locale = language();
+    if (renderedLanguage !== locale) {
+      doc.documentElement.lang = locale;
+      for (const node of doc.querySelectorAll<HTMLElement>('[data-i18n]')) {
+        node.textContent = t(node.dataset.i18n as MessageKey);
+      }
+      element('tab-controls').setAttribute('aria-label', t('tabControls'));
+      renderedLanguage = locale;
+      renderError();
+    }
+    languageInput.value = locale;
+    languageInput.disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null || listSaving;
+    if (editorService) element('episodes-heading').textContent = t('episodesHeading', { service: serviceNames[editorService] });
     switches.enabled.checked = saving?.key === 'enabled' ? saving.value : settings?.enabled ?? false;
-    switches.enabled.disabled = !settings || saving !== null || platformSaving !== null;
+    switches.enabled.disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
     element('playback-settings').hidden = platformsOpen || editorService !== null;
     element('episodes-panel').hidden = editorService === null;
-    platformsButton.disabled = listSaving;
-    linksInput.disabled = listSaving;
-    element<HTMLButtonElement>('save-episodes').disabled = listSaving;
-    element<HTMLButtonElement>('cancel-episodes').disabled = listSaving;
-    element<HTMLButtonElement>('add-current-episode').disabled = listSaving || !editorEpisode || status?.episodeId !== editorEpisode || status.service !== editorService;
+    platformsButton.disabled = listSaving || languageSaving !== null;
+    linksInput.disabled = listSaving || languageSaving !== null;
+    element<HTMLButtonElement>('save-episodes').disabled = listSaving || languageSaving !== null;
+    element<HTMLButtonElement>('cancel-episodes').disabled = listSaving || languageSaving !== null;
+    element<HTMLButtonElement>('add-current-episode').disabled = listSaving || languageSaving !== null || !editorEpisode || status?.episodeId !== editorEpisode || status.service !== editorService;
     element('platforms-panel').hidden = !platformsOpen;
-    platformsButton.textContent = platformsOpen ? 'Volver' : 'Plataformas';
+    platformsButton.textContent = platformsOpen ? t('back') : t('platforms');
     platformsButton.setAttribute('aria-expanded', String(platformsOpen));
     for (const platform of SERVICES) {
       platformSwitches[platform].checked = platformSaving?.service === platform ? platformSaving.enabled : settings?.platforms[platform] ?? false;
-      platformSwitches[platform].disabled = !settings || saving !== null || platformSaving !== null;
+      platformSwitches[platform].disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
     }
     const service = status?.service;
-    element('service-heading').textContent = service ? serviceNames[service] : 'Esta pestaña';
-    element('autoplay-note').textContent = `El avance propio de ${service ? serviceNames[service] : 'cada plataforma'} se controla en su reproductor.`;
+    element('service-heading').textContent = service ? serviceNames[service] : t('thisTab');
+    element('autoplay-note').textContent = t('autoplayNote', { service: service ? serviceNames[service] : t('eachPlatform') });
     for (const action of ACTIONS) {
       const capability = status?.pageSupported ? status.capabilities[action] : undefined;
       switches[action].checked = !capability?.supported || !service ? false
         : saving?.key === action && saving.service === service ? saving.value : settings?.services[service][action] ?? false;
-      switches[action].disabled = !settings || saving !== null || platformSaving !== null || !capability?.supported;
+      switches[action].disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null || !capability?.supported;
       element(`${action}-detail`).textContent = capability
         ? capability.supported
-          ? action === 'intro' && service === 'hbomax' ? 'Activa el botón «Omitir intro».' : descriptions[action]
-          : capability.detail
-        : unavailable;
+          ? action === 'intro' && service === 'hbomax' ? t('hboIntroDetail') : t(`${action}Detail`)
+          : capability.reason ? t(capability.reason) : locale === 'es' ? capability.detail : t('featureUnavailable')
+        : t('unavailable');
     }
     const selectedSupported = Boolean(status?.pageSupported && status.capabilities.selectedEpisode.supported);
     const count = service && settings ? settings.episodeLists[service].length : 0;
-    element<HTMLButtonElement>('edit-episodes').disabled = !settings || !selectedSupported || saving !== null || platformSaving !== null;
+    element<HTMLButtonElement>('edit-episodes').disabled = !settings || !selectedSupported || saving !== null || platformSaving !== null || languageSaving !== null;
     element('edit-episodes').hidden = !selectedSupported;
-    element('edit-episodes').textContent = count ? `Editar lista (${count})` : 'Elegir episodios';
+    element('edit-episodes').textContent = count ? t('editList', { count }) : t('chooseEpisodes');
     if (selectedSupported) {
-      element('selectedEpisode-detail').textContent = count ? `${count} episodios elegidos. Usa el botón siguiente visible.` : 'Elige episodios para activar esta opción.';
+      element('selectedEpisode-detail').textContent = count ? t('selectedCount', { count }) : t('selectFirst');
       if (!count) switches.selectedEpisode.disabled = true;
     }
     const lastAction = status?.lastAction;
-    const actionNames: Record<Action, string> = {intro:'intro', recap:'resumen', credits:'créditos', nextEpisode:'siguiente episodio', selectedEpisode:'episodio elegido'};
     element('last-action').hidden = !lastAction;
-    element('last-action').textContent = lastAction ? `Última acción: ${actionNames[lastAction]}.` : '';
+    element('last-action').textContent = lastAction ? t('lastAction', { action: t(`${lastAction}Name`) }) : '';
 
     let state = 'waiting';
-    let headline = 'Esperando al reproductor';
-    let detail = 'La automatización empezará cuando esté listo el reproductor.';
+    let headline = t('waiting');
+    let detail = t('waitingDetail');
     if (!statusLoaded) {
       state = 'loading';
-      headline = 'Comprobando esta pestaña…';
-      detail = 'Los saltos usan los controles del reproductor.';
+      headline = t('loading');
+      detail = t('loadingDetail');
     } else if (!status?.pageSupported) {
       state = 'unsupported';
-      headline = 'Esta página no es compatible';
-      detail = 'Abre un episodio de Crunchyroll o HBO Max. Si acabas de instalar o actualizar la extensión, recarga su página.';
+      headline = t('unsupported');
+      detail = t('unsupportedDetail');
     } else if (!settings) {
-      headline = 'No se pudieron cargar los ajustes';
-      detail = 'Usa «Volver a intentar» para recuperar tus preferencias.';
+      headline = t('settingsUnavailable');
+      detail = t('settingsUnavailableDetail');
     } else if (!settings.enabled) {
       state = 'off';
-      headline = 'Extensión desactivada';
-      detail = 'Tus opciones siguen guardadas. Actívala cuando quieras.';
+      headline = t('off');
+      detail = t('offDetail');
     } else if (!settings.platforms[status.service]) {
       state = 'off';
-      headline = 'Plataforma desactivada';
-      detail = `Activa ${serviceNames[status.service]} en «Plataformas» para automatizar sus controles. Tus opciones siguen guardadas.`;
+      headline = t('platformOff');
+      detail = t('platformOffDetail', { service: serviceNames[status.service] });
     } else if (status.paused || status.manualHold) {
       state = 'paused';
-      headline = status.paused ? 'En pausa en esta pestaña' : 'En pausa por control manual';
-      detail = 'No se realizarán saltos hasta que reanudes la automatización.';
+      headline = status.paused ? t('paused') : t('manualPaused');
+      detail = t('pausedDetail');
     } else if (status.playerReady) {
       state = 'active';
-      headline = 'Lista en esta pestaña';
-      detail = 'Solo se activan las opciones que elijas cuando aparezca un control compatible.';
+      headline = t('ready');
+      detail = t('readyDetail');
     }
     element('page-state').dataset.state = state;
     element('status').textContent = headline;
     element('status-detail').textContent = detail;
     element('manual-hold').hidden = !status?.manualHold;
     pauseButton.disabled = !status?.pageSupported || tabId === null || pauseSaving;
-    pauseButton.textContent = pauseSaving ? 'Guardando…'
-      : status?.paused || status?.manualHold ? 'Reanudar en esta pestaña' : 'Pausar en esta pestaña';
+    pauseButton.textContent = pauseSaving ? t('saving')
+      : status?.paused || status?.manualHold ? t('resumeTab') : t('pauseTab');
     element('tab-note').textContent = status?.paused || status?.manualHold
-      ? 'Reanudar no cambia tus preferencias ni activa la extensión si está apagada.'
-      : 'La pausa dura hasta que la reanudes o cierres la pestaña.';
+      ? t('resumeNote')
+      : t('pauseNote');
   }
 
   async function loadSettings() {
@@ -181,10 +199,10 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
       const response = await send({ type: 'GET_SETTINGS' });
       if (!isSettingsResponse(response)) throw new Error('Invalid settings response');
       if (!disposed) settings = response.settings;
-      setError('');
+      setError(null);
     } catch {
       if (!disposed) settings = null;
-      setError('No se pudieron cargar tus preferencias. Vuelve a intentarlo.');
+      setError('loadError');
     }
     render();
   }
@@ -214,12 +232,12 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
 
   async function saveSetting(key: SettingKey, value: boolean) {
     const service = status?.service;
-    if (saving || platformSaving || !settings || (key !== 'enabled' && (!service || !status?.pageSupported || !status.capabilities[key].supported))) {
+    if (saving || platformSaving || languageSaving || !settings || (key !== 'enabled' && (!service || !status?.pageSupported || !status.capabilities[key].supported))) {
       render();
       return;
     }
     saving = key === 'enabled' ? { key, value } : { key, value, service };
-    setError('');
+    setError(null);
     render();
     try {
       const response = await send(key === 'enabled'
@@ -228,7 +246,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
       if (!isSettingsResponse(response)) throw new Error('Save failed');
       if (!disposed) settings = response.settings;
     } catch {
-      setError('No se pudo guardar el cambio. Se conserva tu preferencia anterior.');
+      setError('saveError');
     } finally {
       saving = null;
       render();
@@ -236,21 +254,42 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   }
 
   async function savePlatform(service: ServiceId, enabled: boolean) {
-    if (saving || platformSaving || !settings) {
+    if (saving || platformSaving || languageSaving || !settings) {
       render();
       return;
     }
     platformSaving = { service, enabled };
-    setError('');
+    setError(null);
     render();
     try {
       const response = await send({ type: 'SET_PLATFORM', service, enabled });
       if (!isSettingsResponse(response)) throw new Error('Save failed');
       if (!disposed) settings = response.settings;
     } catch {
-      setError('No se pudo guardar el cambio. Se conserva tu preferencia anterior.');
+      setError('saveError');
     } finally {
       platformSaving = null;
+      render();
+    }
+  }
+
+  async function saveLanguage(value: unknown) {
+    if (!isUiLanguage(value) || !settings || saving || platformSaving || listSaving || languageSaving) {
+      render();
+      return;
+    }
+    if (value === settings.language) return;
+    languageSaving = value;
+    if (error?.key === 'saveError') setError(null);
+    render();
+    try {
+      const response = await send({ type: 'SET_LANGUAGE', language: value });
+      if (!isSettingsResponse(response)) throw new Error('Save failed');
+      if (!disposed) settings = response.settings;
+    } catch {
+      setError('saveError');
+    } finally {
+      languageSaving = null;
       render();
     }
   }
@@ -260,14 +299,14 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     const paused = !(status.paused || status.manualHold);
     statusRevision += 1;
     pauseSaving = true;
-    setError('');
+    setError(null);
     render();
     try {
       const response = await send({ type: 'SET_TAB_PAUSE', tabId, paused });
       if (!isObject(response) || response.ok !== true || typeof response.paused !== 'boolean') throw new Error('Pause failed');
       if (!disposed && status) status = { ...status, paused: response.paused, manualHold: response.paused ? status.manualHold : false };
     } catch {
-      setError('No se pudo cambiar la pausa de esta pestaña. Vuelve a intentarlo.');
+      setError('pauseError');
     } finally {
       pauseSaving = false;
       render();
@@ -276,42 +315,41 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   }
 
   function openEpisodes() {
-    if (!settings || !status?.pageSupported || !status.capabilities.selectedEpisode.supported || saving || platformSaving) return;
+    if (!settings || !status?.pageSupported || !status.capabilities.selectedEpisode.supported || saving || platformSaving || languageSaving) return;
     editorService = status.service;
     editorEpisode = status.episodeId;
     linksInput.value = settings.episodeLists[editorService].map(id => episodeLink(editorService!, id)).join('\n');
-    element('episodes-heading').textContent = `Episodios de ${serviceNames[editorService]}`;
-    setError('');
+    setError(null);
     render();
     linksInput.focus();
   }
 
   async function saveEpisodes() {
-    if (!editorService || listSaving || !settings) return;
+    if (!editorService || listSaving || languageSaving || !settings) return;
     const service = editorService;
     const links = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     const ids = links.map(link => episodeIdFromLink(service, link));
     const episodeIds = validateEpisodeList(service, ids);
     if (!episodeIds) {
-      setError(`Usa hasta 100 enlaces válidos de episodios de ${serviceNames[service]}, uno por línea. No se ha guardado ningún cambio.`);
+      setError('invalidLinks', { service: serviceNames[service] });
       return;
     }
     listSaving = true;
-    setError('');
+    setError(null);
     render();
     try {
       const response = await send({type:'SET_EPISODE_LIST', service, episodeIds});
       if (!isSettingsResponse(response)) throw new Error('Save failed');
       if (!disposed) { settings = response.settings; editorService = null; }
-    } catch { setError('No se pudo guardar la lista. Tus cambios siguen aquí para volver a intentarlo.'); }
+    } catch { setError('listError'); }
     finally { listSaving = false; render(); }
   }
 
   const editHandler = () => openEpisodes();
   const saveListHandler = () => { void saveEpisodes(); };
-  const cancelListHandler = () => { if (!listSaving) { editorService = null; setError(''); render(); } };
+  const cancelListHandler = () => { if (!listSaving && !languageSaving) { editorService = null; setError(null); render(); } };
   const addCurrentHandler = () => {
-    if (!editorService || !editorEpisode || listSaving || status?.episodeId !== editorEpisode || status.service !== editorService) return;
+    if (!editorService || !editorEpisode || listSaving || languageSaving || status?.episodeId !== editorEpisode || status.service !== editorService) return;
     const link = episodeLink(editorService, editorEpisode);
     const lines = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
     if (!lines.some(line => episodeIdFromLink(editorService!, line) === editorEpisode)) lines.push(link);
@@ -333,12 +371,14 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     handlers.set(input, handler);
     input.addEventListener('change', handler);
   }
-  const platformsHandler = () => { if (listSaving) return; editorService = null; platformsOpen = !platformsOpen; render(); };
+  const platformsHandler = () => { if (listSaving || languageSaving) return; editorService = null; platformsOpen = !platformsOpen; render(); };
   const pauseHandler = () => { void togglePause(); };
   const retryHandler = () => { void loadSettings(); void refreshStatus(); };
   const storageHandler = (_changes: Record<string, chrome.storage.StorageChange>, area: string) => {
-    if (area === 'local' && !saving && !platformSaving) void loadSettings();
+    if (area === 'local' && !saving && !platformSaving && !languageSaving && !listSaving) void loadSettings();
   };
+  const languageHandler = () => { void saveLanguage(languageInput.value); };
+  languageInput.addEventListener('change', languageHandler);
   platformsButton.addEventListener('click', platformsHandler);
   pauseButton.addEventListener('click', pauseHandler);
   element('retry').addEventListener('click', retryHandler);
@@ -360,6 +400,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     clearInterval(interval);
     for (const [input, handler] of handlers) input.removeEventListener('change', handler);
     for (const [id, handler] of editorHandlers) element(id).removeEventListener('click', handler);
+    languageInput.removeEventListener('change', languageHandler);
     platformsButton.removeEventListener('click', platformsHandler);
     pauseButton.removeEventListener('click', pauseHandler);
     element('retry').removeEventListener('click', retryHandler);

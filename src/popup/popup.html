@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="es">
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,12 +11,12 @@
     <main id="stream-comfort">
       <header class="header">
         <div class="wordmark"><span class="brand-mark" aria-hidden="true">››</span><h1>Stream Comfort</h1></div>
-        <button class="platforms-button" id="platforms-button" type="button" aria-controls="platforms-panel" aria-expanded="false">Plataformas</button>
+        <button class="platforms-button" id="platforms-button" type="button" aria-controls="platforms-panel" aria-expanded="false">Platforms</button>
       </header>
 
       <section id="platforms-panel" aria-labelledby="platforms-heading" hidden>
-        <h2 id="platforms-heading">Tus plataformas</h2>
-        <p class="page-detail">Elige dónde automatizar los controles. Apagar una plataforma conserva sus opciones de salto.</p>
+        <h2 id="platforms-heading" data-i18n="platformsHeading">Your platforms</h2>
+        <p class="page-detail" data-i18n="platformsDetail">Choose where to automate playback controls. Turning a platform off keeps its skip preferences.</p>
         <div class="actions">
           <label class="toggle-row" for="platform-crunchyroll">
             <span><span class="row-title" id="platform-crunchyroll-label">Crunchyroll</span></span>
@@ -27,71 +27,78 @@
             <input id="platform-hbomax" type="checkbox" role="switch" aria-labelledby="platform-hbomax-label" disabled>
           </label>
         </div>
-        <p class="tab-note">Las opciones de salto corresponden a la plataforma abierta en esta pestaña.</p>
+        <p class="tab-note" data-i18n="platformsNote">Skip options apply to the platform open in this tab.</p>
       </section>
 
       <div id="playback-settings">
       <label class="toggle-row global-row" for="enabled">
-        <span><span class="row-title" id="enabled-label">Activar extensión</span><span class="row-detail" id="enabled-detail">Conserva tus preferencias al apagarla.</span></span>
+        <span><span class="row-title" id="enabled-label" data-i18n="enabledLabel">Enable extension</span><span class="row-detail" id="enabled-detail" data-i18n="enabledDetail">Keeps your preferences when turned off.</span></span>
         <input id="enabled" type="checkbox" role="switch" aria-labelledby="enabled-label" aria-describedby="enabled-detail" disabled>
       </label>
 
       <section class="service-section" aria-labelledby="service-heading">
-        <div class="section-heading"><h2 id="service-heading">Esta pestaña</h2><span class="version">0.3.1</span></div>
+        <div class="section-heading"><h2 id="service-heading">This tab</h2><span class="version">0.3.2</span></div>
         <div class="page-state" id="page-state" data-state="loading">
           <span class="state-dot" aria-hidden="true"></span>
-          <p id="status" role="status">Comprobando esta pestaña…</p>
+          <p id="status" role="status">Checking this tab…</p>
         </div>
-        <p class="page-detail" id="status-detail">Los saltos usan los controles del reproductor.</p>
+        <p class="page-detail" id="status-detail">Skips use the player’s own controls.</p>
         <p class="tab-note" id="last-action" hidden></p>
 
         <div class="actions">
           <label class="toggle-row" for="intro">
-            <span><span class="row-title" id="intro-label">Saltar intros</span><span class="row-detail" id="intro-detail">Activa el botón «Saltar intro».</span></span>
+            <span><span class="row-title" id="intro-label" data-i18n="introLabel">Skip intros</span><span class="row-detail" id="intro-detail">Activates the player’s Skip intro button.</span></span>
             <input id="intro" type="checkbox" role="switch" aria-labelledby="intro-label" aria-describedby="intro-detail" disabled>
           </label>
           <label class="toggle-row" for="recap">
-            <span><span class="row-title" id="recap-label">Saltar resúmenes</span><span class="row-detail" id="recap-detail">Activa el botón de resumen.</span></span>
+            <span><span class="row-title" id="recap-label" data-i18n="recapLabel">Skip recaps</span><span class="row-detail" id="recap-detail">Activates the player’s Skip recap button.</span></span>
             <input id="recap" type="checkbox" role="switch" aria-labelledby="recap-label" aria-describedby="recap-detail" disabled>
           </label>
           <label class="toggle-row" for="credits">
-            <span><span class="row-title" id="credits-label">Saltar créditos</span><span class="row-detail" id="credits-detail">Avanza durante los créditos. Puede omitir escenas finales.</span></span>
+            <span><span class="row-title" id="credits-label" data-i18n="creditsLabel">Skip credits</span><span class="row-detail" id="credits-detail">Advances during credits. May skip post-credit scenes.</span></span>
             <input id="credits" type="checkbox" role="switch" aria-labelledby="credits-label" aria-describedby="credits-detail" disabled>
           </label>
           <label class="toggle-row" for="nextEpisode">
-            <span><span class="row-title" id="nextEpisode-label">Siguiente episodio</span><span class="row-detail" id="nextEpisode-detail">Avanza cuando termine el vídeo.</span></span>
+            <span><span class="row-title" id="nextEpisode-label" data-i18n="nextEpisodeLabel">Next episode</span><span class="row-detail" id="nextEpisode-detail">Advances when the video ends.</span></span>
             <input id="nextEpisode" type="checkbox" role="switch" aria-labelledby="nextEpisode-label" aria-describedby="nextEpisode-detail" disabled>
           </label>
           <label class="toggle-row" for="selectedEpisode">
-            <span><span class="row-title" id="selectedEpisode-label">Saltar episodios elegidos</span><span class="row-detail" id="selectedEpisode-detail">Omite solo los episodios de tu lista.</span></span>
+            <span><span class="row-title" id="selectedEpisode-label" data-i18n="selectedEpisodeLabel">Skip selected episodes</span><span class="row-detail" id="selectedEpisode-detail">Skips only episodes on your list.</span></span>
             <input id="selectedEpisode" type="checkbox" role="switch" aria-labelledby="selectedEpisode-label" aria-describedby="selectedEpisode-detail" disabled>
           </label>
         </div>
-        <button id="edit-episodes" class="small-button" type="button" disabled>Elegir episodios</button>
+        <button id="edit-episodes" class="small-button" type="button" disabled>Choose episodes</button>
       </section>
 
-      <section class="tab-section" aria-label="Control de esta pestaña">
-        <p class="manual-hold" id="manual-hold" hidden>Detectamos una pausa o búsqueda manual. Reanuda aquí cuando quieras automatizar este episodio.</p>
-        <button id="tab-pause" type="button" disabled>Pausar en esta pestaña</button>
-        <p class="tab-note" id="tab-note">La pausa dura hasta que la reanudes o cierres la pestaña.</p>
+      <section class="tab-section" id="tab-controls" aria-label="Controls for this tab">
+        <p class="manual-hold" id="manual-hold" hidden data-i18n="manualHold">A manual pause or seek was detected. Resume here when you want to automate this episode.</p>
+        <button id="tab-pause" type="button" disabled>Pause for this tab</button>
+        <p class="tab-note" id="tab-note">Paused until you resume or close this tab.</p>
       </section>
       </div>
 
       <section id="episodes-panel" aria-labelledby="episodes-heading" hidden>
-        <h2 id="episodes-heading">Episodios de Crunchyroll</h2>
-        <p class="page-detail">Pega un enlace de episodio por línea, hasta 100. Al abrir uno de ellos, se pulsará «Siguiente episodio» si está visible. Su interruptor se controla por separado.</p>
-        <label class="row-title editor-label" for="episode-links">Enlaces que quieres omitir</label>
+        <h2 id="episodes-heading">Crunchyroll episodes</h2>
+        <p class="page-detail" data-i18n="episodesDetail">Paste up to 100 episode links, one per line. Opening a listed episode activates Next episode if its button is visible. Enable the skip list with its separate toggle.</p>
+        <label class="row-title editor-label" for="episode-links" data-i18n="episodeLinksLabel">Episode links to skip</label>
         <textarea id="episode-links" rows="7" spellcheck="false" aria-describedby="episode-list-help"></textarea>
-        <p class="tab-note" id="episode-list-help">Solo se guardan los identificadores que elijas. No se recopila tu historial ni se deducen episodios de relleno.</p>
-        <button id="add-current-episode" class="small-button" type="button">Añadir episodio actual</button>
-        <div class="editor-actions"><button id="save-episodes" type="button">Guardar lista</button><button id="cancel-episodes" type="button">Volver</button></div>
+        <p class="tab-note" id="episode-list-help" data-i18n="episodeListHelp">Only your selected IDs are saved. No viewing history is collected and no filler episodes are inferred.</p>
+        <button id="add-current-episode" class="small-button" type="button" data-i18n="addCurrent">Add current episode</button>
+        <div class="editor-actions"><button id="save-episodes" type="button" data-i18n="saveList">Save list</button><button id="cancel-episodes" type="button" data-i18n="back">Back</button></div>
       </section>
 
       <div class="error" id="error-panel" hidden>
         <p id="error" role="alert"></p>
-        <button id="retry" class="retry" type="button">Volver a intentar</button>
+        <button id="retry" class="retry" type="button" data-i18n="retry">Try again</button>
       </div>
-      <footer>Preferencias guardadas en este dispositivo.<br><span id="autoplay-note">El avance propio de cada plataforma se controla en su reproductor.</span></footer>
+      <div class="language-row">
+        <label for="language" data-i18n="language">Language</label>
+        <select id="language" disabled>
+          <option value="en">English</option>
+          <option value="es">Español</option>
+        </select>
+      </div>
+      <footer><span data-i18n="savedLocally">Preferences saved on this device.</span><br><span id="autoplay-note">Each platform’s own autoplay is controlled in its player.</span></footer>
     </main>
   </body>
 </html>

@@ -78,6 +78,30 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(api.storage.local.set).not.toHaveBeenCalled();
   });
 
+  it('keeps language across worker restarts and concurrent platform/action edits', async () => {
+    await Promise.all([
+      request({ type: 'SET_LANGUAGE', language: 'es' }),
+      request({ type: 'SET_PLATFORM', service: 'hbomax', enabled: false }),
+      request({ type: 'SET_SETTING', key: 'credits', service: 'crunchyroll', value: true }),
+    ]);
+    await boot();
+    const saved = (await request({ type: 'GET_SETTINGS' })).settings!;
+    expect(saved.language).toBe('es');
+    expect(saved.platforms.hbomax).toBe(false);
+    expect(saved.services.crunchyroll.credits).toBe(true);
+    expect((await request({ type: 'SET_LANGUAGE', language: 'en' })).settings).toEqual({ ...saved, language: 'en' });
+  });
+
+  it('rejects malformed languages and language changes from streaming content', async () => {
+    for (const language of [undefined, 'fr', 'ES', true, null, '__proto__']) {
+      expect((await request({ type: 'SET_LANGUAGE', language })).ok).toBe(false);
+    }
+    for (const sender of [content, hboContent]) {
+      expect((await request({ type: 'SET_LANGUAGE', language: 'es' }, sender)).ok).toBe(false);
+    }
+    expect(api.storage.local.set).not.toHaveBeenCalled();
+  });
+
   it('saves selected IDs from the popup only, rejects invalid input and serializes other choices', async () => {
     const message = {type:'SET_EPISODE_LIST',service:'crunchyroll',episodeIds:['EPISODE01','EPISODE01']};
     expect((await request(message,content)).ok).toBe(false);

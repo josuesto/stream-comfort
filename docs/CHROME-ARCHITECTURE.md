@@ -47,3 +47,9 @@ Cancel pending actions on route/episode/player replacement. At click time requir
 ## Popup stability (0.3.1)
 
 Chrome automatically sizes its popup to the document within 25×25 and 800×600 pixels. Use a fixed 350×600 document and scroll its body to prevent native resizing as panels or status text change. Compare successive status payloads and do not render an unchanged response. Preserve actual status updates and discard responses predating a successful pause interaction. [Action popup documentation](https://developer.chrome.com/docs/extensions/reference/api/action)
+
+## Popup language (0.3.2)
+
+Use bundled, typed English and Spanish catalogs with a locally saved `language` preference. Missing or invalid values normalize to English without resetting version-1 playback settings. The popup-only `SET_LANGUAGE` request uses the same serialized storage queue as other preferences. No new permission, network request, browser-language dependency, or remote translation service is involved.
+
+Adapters expose optional semantic capability reasons so the popup can explain player limitations in either UI language. Older status payloads remain accepted; English uses a generic localized explanation when no reason code is available. Native control labels and selectors are not translated or changed. Language rendering touches text nodes only; editor input nodes and their drafts are retained. Unchanged status polls continue to avoid DOM writes.

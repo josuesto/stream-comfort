@@ -3,11 +3,14 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { mountPopup } from '../src/popup/popup';
+import { defaultSettings } from '../src/shared/settings';
+import { messages, translate, type MessageKey } from '../src/popup/i18n';
 import { ACTIONS, type Request, type ServiceId, type Settings, type TabStatus } from '../src/shared/types';
 
 const html = readFileSync(resolve('src/popup/popup.html'), 'utf8');
 const originalSettings = (): Settings => ({
   version: 1,
+  language: 'es',
   enabled: true,
   platforms: { crunchyroll: true, hbomax: true },
   episodeLists: { crunchyroll: [], hbomax: [] },
@@ -38,6 +41,10 @@ function fixture() {
       if (request.key === 'enabled') settings.enabled = request.value;
       else if (request.service) settings.services[request.service][request.key] = request.value;
       else return { ok: false };
+      return { ok: true, settings: structuredClone(settings) };
+    }
+    if (request.type === 'SET_LANGUAGE') {
+      settings.language = request.language;
       return { ok: true, settings: structuredClone(settings) };
     }
     if (request.type === 'SET_PLATFORM') {
@@ -84,6 +91,12 @@ async function change(id: string, checked: boolean) {
   input(id).dispatchEvent(new Event('change', { bubbles: true }));
   await settle();
 }
+async function changeLanguage(value: 'en' | 'es') {
+  const select = document.getElementById('language') as HTMLSelectElement;
+  select.value = value;
+  select.dispatchEvent(new Event('change', { bubbles: true }));
+  await settle();
+}
 
 describe('popup controls', () => {
   let cleanup: (() => void) | undefined;
@@ -103,8 +116,10 @@ describe('popup controls', () => {
     return { ...f, controller };
   }
 
-  it('keeps an unchanged open popup still instead of rewriting it on each poll', async () => {
-    const f = await start();
+  it.each(['en', 'es'] as const)('keeps an unchanged %s popup still instead of rewriting it on each poll', async language => {
+    const initial = fixture();
+    initial.setSettings({ ...originalSettings(), language });
+    const f = await start(initial);
     document.getElementById('edit-episodes')!.click();
     const editor = document.getElementById('episode-links') as HTMLTextAreaElement;
     editor.value = 'https://www.crunchyroll.com/watch/EPISODE01';
@@ -124,6 +139,148 @@ describe('popup controls', () => {
     expect(editor.selectionEnd).toBe(17);
     expect(document.body.scrollTop).toBe(40);
     expect(editor.value).toContain('EPISODE01');
+  });
+
+  it('starts in English independently of browser language and translates platform controls', async () => {
+    document.documentElement.lang = 'es';
+    const f = fixture();
+    f.setSettings(defaultSettings());
+    await start(f);
+    expect(document.documentElement.lang).toBe('en');
+    expect(input('language').value).toBe('en');
+    expect(document.getElementById('intro-label')?.textContent).toBe('Skip intros');
+    expect(document.getElementById('status')?.textContent).toBe('Ready in this tab');
+    expect(document.getElementById('tab-controls')?.getAttribute('aria-label')).toBe('Controls for this tab');
+    document.getElementById('platforms-button')!.click();
+    expect(document.getElementById('platforms-heading')?.textContent).toBe('Your platforms');
+    expect(document.getElementById('platforms-button')?.textContent).toBe('Back');
+    await changeLanguage('es');
+    expect(document.getElementById('platforms-heading')?.textContent).toBe('Tus plataformas');
+    expect(document.getElementById('platforms-button')?.textContent).toBe('Volver');
+    for (const node of document.querySelectorAll<HTMLElement>('[data-i18n]')) {
+      expect(node.textContent).toBe(messages.es[node.dataset.i18n as MessageKey]);
+    }
+  });
+
+  it('keeps skip preferences and paused state intact, and remembers language on reopen', async () => {
+    const f = fixture();
+    const previous = originalSettings();
+    previous.enabled = false;
+    previous.platforms.hbomax = false;
+    previous.episodeLists.crunchyroll = ['EPISODE01'];
+    previous.services.crunchyroll.selectedEpisode = true;
+    f.setSettings(previous);
+    f.setStatus({ ...originalStatus(), paused: true, manualHold: true });
+    const mounted = await start(f);
+    await changeLanguage('en');
+    expect(f.settings()).toEqual({ ...previous, language: 'en' });
+    expect(document.getElementById('tab-pause')?.textContent).toBe('Resume for this tab');
+    expect(document.getElementById('manual-hold')?.hidden).toBe(false);
+    expect(f.sendMessage.mock.calls.map(([m]) => m.type)).toEqual(['GET_SETTINGS', 'SET_LANGUAGE']);
+    mounted.controller.dispose();
+    document.body.innerHTML = new DOMParser().parseFromString(html, 'text/html').body.innerHTML;
+    await start(f);
+    expect(document.documentElement.lang).toBe('en');
+    expect(document.getElementById('enabled-label')?.textContent).toBe('Enable extension');
+  });
+
+  it('translates an open editor and its validation error without losing the draft or selection', async () => {
+    const f = await start();
+    document.getElementById('edit-episodes')!.click();
+    const editor = document.getElementById('episode-links') as HTMLTextAreaElement;
+    editor.value = 'not an episode link';
+    editor.setSelectionRange(4, 10);
+    document.getElementById('save-episodes')!.click();
+    expect(document.getElementById('error')?.textContent).toContain('enlaces válidos');
+    await changeLanguage('en');
+    expect(document.getElementById('episodes-panel')?.hidden).toBe(false);
+    expect(document.getElementById('episodes-heading')?.textContent).toBe('Crunchyroll episodes');
+    expect(document.getElementById('save-episodes')?.textContent).toBe('Save list');
+    expect(document.getElementById('error')?.textContent).toContain('valid Crunchyroll episode links');
+    expect(editor.value).toBe('not an episode link');
+    expect([editor.selectionStart, editor.selectionEnd]).toEqual([4, 10]);
+    expect(f.settings().episodeLists.crunchyroll).toEqual([]);
+    expect(f.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_EPISODE_LIST' }));
+  });
+
+  it('rolls back a failed language save and allows retry without altering skip choices', async () => {
+    const f = await start();
+    const previous = structuredClone(f.settings());
+    f.sendMessage.mockRejectedValueOnce(new Error('storage unavailable'));
+    await changeLanguage('en');
+    expect(document.documentElement.lang).toBe('es');
+    expect(input('language').value).toBe('es');
+    expect(input('language').disabled).toBe(false);
+    expect(document.getElementById('error')?.textContent).toContain('preferencia anterior');
+    expect(f.settings()).toEqual(previous);
+    await changeLanguage('en');
+    expect(document.documentElement.lang).toBe('en');
+    expect(f.settings()).toEqual({ ...previous, language: 'en' });
+  });
+
+  it('lets unsupported pages change language and keeps their actions disabled', async () => {
+    const f = fixture();
+    f.setStatus(null);
+    await start(f);
+    await changeLanguage('en');
+    expect(document.getElementById('status')?.textContent).toBe('This page is not supported');
+    expect(document.getElementById('intro-detail')?.textContent).toContain('Open a supported episode');
+    expect(input('language').disabled).toBe(false);
+    for (const action of ACTIONS) expect(input(action).disabled).toBe(true);
+  });
+
+  it('blocks conflicting edits until a pending language save settles', async () => {
+    const f = await start();
+    let resolveSave!: (value: { ok: boolean; settings: Settings }) => void;
+    f.sendMessage.mockImplementationOnce(() => new Promise(resolve => { resolveSave = resolve; }));
+    await changeLanguage('en');
+    expect(input('language').disabled).toBe(true);
+    expect(input('intro').disabled).toBe(true);
+    await change('intro', false);
+    expect(f.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SETTING' }));
+    resolveSave({ ok: true, settings: { ...f.settings(), language: 'en' } });
+    await settle();
+    expect(input('language').disabled).toBe(false);
+    expect(input('intro').checked).toBe(true);
+    expect(document.documentElement.lang).toBe('en');
+  });
+
+  it('rejects a malformed saved language instead of breaking popup rendering', async () => {
+    const f = await start();
+    f.sendMessage.mockResolvedValueOnce({ ok: true, settings: { ...f.settings(), language: 'fr' as never } });
+    await changeLanguage('en');
+    expect(document.documentElement.lang).toBe('es');
+    expect(input('language').value).toBe('es');
+    expect(input('language').disabled).toBe(false);
+    expect(document.getElementById('error-panel')?.hidden).toBe(false);
+  });
+
+  it('localizes capability reasons and last actions without enabling unsupported player locales', async () => {
+    const f = fixture();
+    const status = originalStatus('hbomax');
+    status.lastAction = 'recap';
+    status.capabilities.intro = { supported: false, detail: 'Solo español.', reason: 'spanishPlayerRequired' };
+    status.capabilities.recap = { supported: false, detail: 'Sin resumen.', reason: 'crRecapUnavailable' };
+    status.capabilities.selectedEpisode = { supported: false, detail: 'No se puede.', reason: 'hboEpisodeListUnavailable' };
+    f.setStatus(status);
+    await start(f);
+    await changeLanguage('en');
+    expect(document.getElementById('intro-detail')?.textContent).toContain('player set to Spanish');
+    expect(document.getElementById('recap-detail')?.textContent).toContain('Crunchyroll has no recap control');
+    expect(document.getElementById('selectedEpisode-detail')?.textContent).toContain('HBO has no Next episode button');
+    expect(document.getElementById('last-action')?.textContent).toBe('Last action: recap.');
+    expect(input('intro').disabled).toBe(true);
+    expect(input('selectedEpisode').disabled).toBe(true);
+  });
+
+  it('keeps both catalogs complete with matching interpolation parameters', () => {
+    expect(Object.keys(messages.es).sort()).toEqual(Object.keys(messages.en).sort());
+    for (const key of Object.keys(messages.en) as MessageKey[]) {
+      expect(messages.es[key].match(/\{\w+\}/g) ?? []).toEqual(messages.en[key].match(/\{\w+\}/g) ?? []);
+      for (const language of ['en', 'es'] as const) {
+        expect(translate(language, key, { service: 'Crunchyroll', count: 2, action: 'intro' })).not.toMatch(/\{\w+\}/);
+      }
+    }
   });
 
   it('does not flash an older unpaused status after the pause button succeeds', async () => {
