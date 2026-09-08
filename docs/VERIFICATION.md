@@ -1,6 +1,8 @@
-# Informe de verificación 0.2.0
+# Informe de verificación 0.2.1
 
 Fecha: 7 de septiembre de 2026.
+
+La actualización 0.2.1 cambia la descripción de Chrome a inglés y documenta la ampliación futura de plataformas. Se recompiló y verificó el manifiesto empaquetado. La lógica de reproducción no cambia; los resultados automatizados de 0.2.0 que siguen continúan siendo la base de verificación. La captura aportada por el usuario confirma que 0.2.0 está instalada. Se realizó después una comprobación limitada de reproducción real de HBO, descrita más abajo.
 
 ## Resultado del código y build
 
@@ -30,6 +32,12 @@ La extensión no estuvo instalada durante esas acciones. Estas observaciones val
 Se inspeccionó el reproductor actual de `play.hbomax.com` en español latinoamericano (`es-419`) en una sesión de Chrome ya autenticada. Se observaron el botón genérico «Saltar» durante una promoción y los controles «Omitir resumen» y «Omitir intro». Se activó manualmente «Omitir intro» y se comprobó el salto realizado por el propio servicio. El botón mantiene su texto al ocultarse, por lo que la visibilidad de sus ancestros forma parte de la detección.
 
 La etiqueta de resumen y su estado visible se observaron; no se presenta como una prueba completa de salto automático. El contenedor `up_next` observado estaba vacío y oculto. No se logró verificar una oferta activa y segura de avance al final: créditos y siguiente episodio permanecen no disponibles en HBO Max. No se implementaron selectores para esas acciones por suposición. La [evidencia de HBO](../fixtures/hbomax/README.md) describe el fixture reducido y sus variaciones sintéticas.
+
+## Comprobación de HBO con la extensión instalada
+
+Después de que el usuario cargara 0.2.0, se abrió de nuevo un episodio en español desde el enlace de reproducción inicial del servicio. Con el documento visible, se tomaron dos muestras del vídeo: pasó de 90,69 a 209,19 segundos durante 19,91 segundos de tiempo real, atravesando el segmento de intro previamente inspeccionado. No hubo clic manual de salto, búsqueda, cambio de velocidad ni escritura sobre el vídeo entre las muestras. Se observó así un salto de reproducción con la extensión instalada.
+
+Las muestras no instrumentaron el evento de clic de la extensión ni aislaron otras posibles automatizaciones del navegador. La observación respalda el funcionamiento de la intro en esa sesión; no equivale a ejecutar toda la lista manual ni a una prueba causal completa de cada acción. El salto de resumen no se aisló en esta comprobación. El reproductor de prueba se cerró al terminar.
 
 ## Popup en navegador
 

@@ -2,6 +2,8 @@
 
 Checklist pendiente de completar con la extensión instalada en Chrome. Repite los casos comunes en los reproductores admitidos de Crunchyroll (`es-es`) y HBO Max (`es-419`); los casos de avance corresponden solo a Crunchyroll. Marca solo lo que ejecutes y anota servicio, versión de Chrome, idioma, resultado y si el control esperado estaba visible. No publiques datos de cuenta, cookies ni fuentes de vídeo.
 
+Progreso del 7 de septiembre: el usuario confirmó la instalación de 0.2.0 y se observó un salto de intro en HBO con la extensión instalada. La observación fue limitada y no instrumentó el clic: véase [VERIFICATION.md](VERIFICATION.md). Los casos completos de esta lista continúan pendientes.
+
 Para separar el comportamiento del servicio y el de la extensión, revisa el avance automático nativo del servicio; en Crunchyroll, desactiva **Reproducir siguiente**. Mantén inicialmente desactivados **Saltar créditos** y **Siguiente episodio** en la extensión. Ambas opciones de avance deben continuar no disponibles en HBO Max.
 
 - [ ] **Instalación:** cargar `dist` descomprimida en Chrome 120+. La tarjeta de la extensión, el worker y el popup no muestran errores de manifiesto, JavaScript o CSP.

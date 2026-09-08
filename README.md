@@ -1,6 +1,6 @@
 # Stream Comfort
 
-Extensión para Chrome que automatiza los controles reales de Crunchyroll y HBO Max. Popup sencillo, interruptores independientes por plataforma y preferencias locales. La compatibilidad se limita a los reproductores y controles en español inspeccionados; una función sin evidencia permanece deshabilitada.
+Extensión para Chrome que automatiza los controles reales de las plataformas de streaming. Popup sencillo, interruptores independientes por plataforma y preferencias locales. El objetivo a largo plazo es ampliar la cobertura a todas las plataformas que permitan una integración fiable. Por ahora el desarrollo y la verificación se concentran en Crunchyroll y HBO Max, los dos servicios disponibles para probar. La compatibilidad actual se limita a los reproductores y controles en español inspeccionados; una función sin evidencia permanece deshabilitada.
 
 ## Qué puedes activar
 
