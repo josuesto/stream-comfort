@@ -1,4 +1,4 @@
-export const ACTIONS = ['intro', 'recap', 'credits', 'nextEpisode'] as const;
+export const ACTIONS = ['intro', 'recap', 'credits', 'nextEpisode', 'selectedEpisode'] as const;
 export type Action = typeof ACTIONS[number];
 export const SERVICES = ['crunchyroll', 'hbomax'] as const;
 export type ServiceId = typeof SERVICES[number];
@@ -11,6 +11,7 @@ export interface Settings {
   enabled: boolean;
   platforms: Record<ServiceId, boolean>;
   services: Record<ServiceId, ActionSettings>;
+  episodeLists: Record<ServiceId, string[]>;
 }
 export interface Capability { supported: boolean; detail: string }
 export type Capabilities = Record<Action, Capability>;
@@ -27,6 +28,7 @@ export interface ServiceAdapter {
 }
 export interface TabStatus {
   service: ServiceId;
+  episodeId: string | null;
   pageSupported: boolean;
   playerReady: boolean;
   paused: boolean;
@@ -38,6 +40,7 @@ export type Request =
   | { type: 'GET_SETTINGS' }
   | { type: 'SET_SETTING'; key: 'enabled' | Action; value: boolean; service?: ServiceId }
   | { type: 'SET_PLATFORM'; service: ServiceId; enabled: boolean }
+  | { type: 'SET_EPISODE_LIST'; service: ServiceId; episodeIds: string[] }
   | { type: 'GET_TAB_PAUSE' }
   | { type: 'SET_TAB_PAUSE'; tabId: number; paused: boolean }
   | { type: 'TAB_PAUSE_CHANGED'; paused: boolean }

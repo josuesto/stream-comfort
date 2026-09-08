@@ -9,6 +9,7 @@ const capabilities: Capabilities = {
   recap: { supported: true, detail: 'fixture' },
   credits: { supported: true, detail: 'fixture' },
   nextEpisode: { supported: true, detail: 'fixture' },
+  selectedEpisode: { supported: true, detail: 'fixture' },
 };
 
 function media(video: HTMLVideoElement, values: Partial<Record<'paused' | 'ended' | 'seeking' | 'readyState', boolean | number>>): void {
@@ -53,6 +54,75 @@ beforeEach(() => {
   Object.defineProperty(document, 'visibilityState', { value: 'visible', configurable: true });
 });
 afterEach(() => { engines.splice(0).forEach(engine => engine.dispose()); });
+
+describe('explicit episode selection', () => {
+  it('requires both opt-in and exact list membership, and advances only once', () => {
+    const f = fixture();
+    f.snapshot.candidates = {};
+    const next = vi.spyOn(f.add('selectedEpisode'), 'click');
+    f.state.settings.episodeLists.crunchyroll = [f.snapshot.episodeId!];
+    f.engine.step();
+    expect(next).not.toHaveBeenCalled();
+    f.state.settings.services.crunchyroll.selectedEpisode = true;
+    f.state.settings.episodeLists.crunchyroll = ['different-episode'];
+    f.engine.step();
+    expect(next).not.toHaveBeenCalled();
+    f.state.settings.episodeLists.crunchyroll = [f.snapshot.episodeId!];
+    f.engine.step();
+    f.engine.step();
+    f.engine.resume();
+    f.engine.step();
+    expect(next).toHaveBeenCalledOnce();
+    expect(f.engine.lastAction).toBe('selectedEpisode');
+  });
+
+  it('shares navigation protection with credits and blocks remaining old-episode actions', () => {
+    const f = fixture();
+    const intro = vi.spyOn(f.snapshot.candidates.intro!, 'click');
+    const selected = vi.spyOn(f.add('selectedEpisode'), 'click');
+    const credits = vi.spyOn(f.add('credits'), 'click');
+    f.state.settings.services.crunchyroll.selectedEpisode = true;
+    f.state.settings.services.crunchyroll.credits = true;
+    f.state.settings.episodeLists.crunchyroll = [f.snapshot.episodeId!];
+    f.engine.step(); f.engine.step();
+    expect(selected).toHaveBeenCalledOnce();
+    expect(credits).not.toHaveBeenCalled();
+    expect(intro).not.toHaveBeenCalled();
+  });
+
+  it('respects pause and checks list removal immediately before clicking', () => {
+    const f = fixture();
+    f.snapshot.candidates = {};
+    const next = vi.spyOn(f.add('selectedEpisode'), 'click');
+    f.state.settings.services.crunchyroll.selectedEpisode = true;
+    f.state.settings.episodeLists.crunchyroll = [f.snapshot.episodeId!];
+    f.engine.manualInteraction(); f.engine.step();
+    expect(next).not.toHaveBeenCalled();
+    f.engine.resume();
+    let reads = 0;
+    vi.mocked(f.adapter.inspect).mockImplementation(() => {
+      if (++reads === 2) f.state.settings.episodeLists.crunchyroll = [];
+      return f.snapshot;
+    });
+    f.engine.step();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('waits for the new media boundary before skipping another selected episode', () => {
+    const f = fixture();
+    f.snapshot.candidates = {};
+    const next = vi.spyOn(f.add('selectedEpisode'), 'click');
+    f.state.settings.services.crunchyroll.selectedEpisode = true;
+    f.state.settings.episodeLists.crunchyroll = [f.snapshot.episodeId!, 'episode-two'];
+    f.engine.step();
+    f.snapshot = {...f.snapshot, episodeId:'episode-two'};
+    f.engine.step();
+    expect(next).toHaveBeenCalledOnce();
+    f.snapshot.video!.dispatchEvent(new Event('loadedmetadata'));
+    f.engine.step();
+    expect(next).toHaveBeenCalledTimes(2);
+  });
+});
 
 describe('playback actions and settings', () => {
   it('clicks the actual control once despite repeated steps and replacement buttons', () => {

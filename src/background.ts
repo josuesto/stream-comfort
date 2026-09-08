@@ -1,5 +1,6 @@
 import { ACTIONS, isServiceId, type Action } from './shared/types';
-import { SETTINGS_KEY, normalizeSettings, updatePlatform, updateSetting } from './shared/settings';
+import { SETTINGS_KEY, normalizeSettings, updatePlatform, updateSetting, updateEpisodeList } from './shared/settings';
+import { validateEpisodeList } from './shared/episodes';
 
 type Response =
   | { ok: true; settings: ReturnType<typeof normalizeSettings> }
@@ -80,6 +81,17 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
         return { ok: true, settings };
       });
     }
+    case 'SET_EPISODE_LIST': {
+      if (!popup) return denied();
+      const { service, episodeIds } = message;
+      if (!isServiceId(service) || !validateEpisodeList(service, episodeIds)) return invalid();
+      return serial(async () => {
+        const data = await chrome.storage.local.get(SETTINGS_KEY);
+        const settings = updateEpisodeList(normalizeSettings(data[SETTINGS_KEY]), service, episodeIds);
+        await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
+        return { ok: true, settings };
+      });
+    }
     case 'GET_TAB_PAUSE': {
       if (!content || !validTabId(sender.tab?.id)) return denied();
       const key = pauseKey(sender.tab.id);
@@ -109,7 +121,7 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
   }
 }
 
-const handledTypes = new Set(['GET_SETTINGS', 'SET_SETTING', 'SET_PLATFORM', 'GET_TAB_PAUSE', 'SET_TAB_PAUSE']);
+const handledTypes = new Set(['GET_SETTINGS', 'SET_SETTING', 'SET_PLATFORM', 'SET_EPISODE_LIST', 'GET_TAB_PAUSE', 'SET_TAB_PAUSE']);
 
 // Register synchronously. Async listeners require newer Chrome rollout behavior.
 chrome.runtime.onMessage.addListener((message: unknown, sender, sendResponse) => {

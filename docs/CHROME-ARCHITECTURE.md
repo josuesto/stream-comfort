@@ -14,7 +14,7 @@ Bundle all executable code locally. Avoid inline JavaScript, eval, remote script
 
 Use `storage.local` for a versioned, schema-validated settings object. It survives browser restarts and cache/history clearing; it is removed on uninstall. Never use sync storage because the product promises local preferences. Listen to `storage.onChanged` to apply edits immediately in running content scripts.
 
-Store temporary pause in `storage.session` under one key per tab, owned by the service worker. This survives worker termination and ordinary tab reloads, while being cleared when the extension reloads/disables/updates or Chrome restarts. Remove a tab's key on `tabs.onRemoved`. Keep the default trusted-context access for session storage; answer content-script state queries through the worker using `sender.tab.id`, never a page-provided tab ID. Only persist booleans/settings, not page content, URLs, or viewing history. `storage.session` and access-level controls require Chrome 102+. [Storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)
+Store temporary pause in `storage.session` under one key per tab, owned by the service worker. This survives worker termination and ordinary tab reloads, while being cleared when the extension reloads/disables/updates or Chrome restarts. Remove a tab's key on `tabs.onRemoved`. Keep the default trusted-context access for session storage; answer content-script state queries through the worker using `sender.tab.id`, never a page-provided tab ID. Persist settings and only the episode IDs explicitly selected by the user. Never collect viewing history or store page content; pasted URLs are validated and reduced to IDs. `storage.session` and access-level controls require Chrome 102+. [Storage API](https://developer.chrome.com/docs/extensions/reference/api/storage)
 
 Initialize content-script automation disabled until both saved preferences and the current tab pause state have loaded. Storage failure should disable automation and surface an error rather than silently restoring enabled defaults. Use one key per tab to avoid overwriting another tab's pause during concurrent writes. These are design choices based on the asynchronous APIs.
 
@@ -43,3 +43,7 @@ Cancel pending actions on route/episode/player replacement. At click time requir
 - No old control can fire after route/episode replacement; visibility changes and duplicate nodes do not produce repeated actions.
 - Intro/recap checks remain separate from credits/next-episode advancement, which defaults off.
 - Verify normal/fullscreen playback, back/forward navigation, and direct entry from a tab opened before extension installation.
+
+## Popup stability (0.3.1)
+
+Chrome automatically sizes its popup to the document within 25×25 and 800×600 pixels. Use a fixed 350×600 document and scroll its body to prevent native resizing as panels or status text change. Compare successive status payloads and do not render an unchanged response. Preserve actual status updates and discard responses predating a successful pause interaction. [Action popup documentation](https://developer.chrome.com/docs/extensions/reference/api/action)

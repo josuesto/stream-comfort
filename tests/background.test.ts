@@ -78,6 +78,19 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(api.storage.local.set).not.toHaveBeenCalled();
   });
 
+  it('saves selected IDs from the popup only, rejects invalid input and serializes other choices', async () => {
+    const message = {type:'SET_EPISODE_LIST',service:'crunchyroll',episodeIds:['EPISODE01','EPISODE01']};
+    expect((await request(message,content)).ok).toBe(false);
+    expect((await request(message,hboContent)).ok).toBe(false);
+    expect((await request({...message,episodeIds:['EPISODE01','bad id']})).ok).toBe(false);
+    expect(api.storage.local.set).not.toHaveBeenCalled();
+    await Promise.all([request(message),request({type:'SET_SETTING',key:'intro',value:false,service:'hbomax'})]);
+    const result = await request({type:'GET_SETTINGS'});
+    expect(result.settings?.episodeLists.crunchyroll).toEqual(['EPISODE01']);
+    expect(result.settings?.services.crunchyroll.selectedEpisode).toBe(false);
+    expect(result.settings?.services.hbomax.intro).toBe(false);
+  });
+
   it('serializes simultaneous edits so independent settings are not lost', async () => {
     await Promise.all([
       request({ type: 'SET_SETTING', key: 'enabled', value: false }),
@@ -88,15 +101,15 @@ describe('MV3 settings and temporary tab pause', () => {
     ]);
     const result = await request({ type: 'GET_SETTINGS' });
     expect(result.settings?.enabled).toBe(false);
-    expect(result.settings?.services.crunchyroll).toEqual({ intro: false, recap: true, credits: false, nextEpisode: true });
-    expect(result.settings?.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: false });
+    expect(result.settings?.services.crunchyroll).toEqual({ intro: false, recap: true, credits: false, nextEpisode: true, selectedEpisode: false });
+    expect(result.settings?.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: false, selectedEpisode: false });
     expect(result.settings?.platforms).toEqual({ crunchyroll: true, hbomax: false });
   });
 
   it('reads old single-service preferences without overwriting them and migrates on the next edit', async () => {
     const previous = {
       version: 1, enabled: false,
-      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true } },
+      services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true, selectedEpisode: false } },
     };
     localData.settings = previous;
     const read = await request({ type: 'GET_SETTINGS' }, hboContent);

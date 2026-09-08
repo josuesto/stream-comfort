@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHboMaxAdapter, hboEpisodeIdFromUrl } from '../src/services/hbomax';
 
 const fixture = readFileSync('fixtures/hbomax/player-es.html', 'utf8');
+const upNextFixture = readFileSync('fixtures/hbomax/up-next-es.html', 'utf8');
 const episodeA = '00000000-0000-4000-8000-000000000001';
 const episodeB = '00000000-0000-4000-8000-000000000002';
 const watchUrl = `https://play.hbomax.com/video/watch/${episodeA}`;
@@ -174,14 +175,14 @@ describe('observed Spanish HBO Max player', () => {
     },
   );
 
-  it('keeps advancement unsupported even if the video has ended or a suggested-next region is visible', () => {
+  it('rejects an unrecognized suggested-next control even after the video ends', () => {
     Object.defineProperty(document.querySelector('video'), 'ended', { value: true });
     const upNext = overlay().querySelector<HTMLElement>('[data-testid="up_next"]')!;
     upNext.style.visibility = 'visible';
     upNext.innerHTML = '<button aria-label="Siguiente episodio">Siguiente episodio</button>';
     const snapshot = adapter().inspect();
-    expect(snapshot.capabilities.credits.supported).toBe(false);
-    expect(snapshot.capabilities.nextEpisode.supported).toBe(false);
+    expect(snapshot.capabilities.credits.supported).toBe(true);
+    expect(snapshot.capabilities.nextEpisode.supported).toBe(true);
     expect(snapshot.candidates.credits).toBeUndefined();
     expect(snapshot.candidates.nextEpisode).toBeUndefined();
   });
@@ -221,5 +222,58 @@ describe('HBO Max episode URL identity', () => {
     'not a URL',
   ])('rejects unsupported origins, routes, and malformed IDs: %s', url => {
     expect(hboEpisodeIdFromUrl(url)).toBeNull();
+  });
+});
+
+describe('observed HBO up-next offer', () => {
+  function offer() {
+    overlay().querySelector('[data-testid="up_next"]')!.outerHTML = upNextFixture;
+    skipRegion().style.visibility = 'hidden';
+    return overlay().querySelector<HTMLButtonElement>('[data-testid="player-ux-up-next-button"]')!;
+  }
+
+  it('uses the active credits offer, even when no skip button is mounted', () => {
+    const next = offer();
+    skipButton().remove();
+    expect(adapter().inspect().candidates).toEqual({credits: next});
+    Object.defineProperty(document.querySelector('video'), 'currentTime', {value:99999});
+    expect(adapter().inspect().candidates.nextEpisode).toBeUndefined();
+    Object.defineProperty(document.querySelector('video'), 'ended', {value:true});
+    expect(adapter().inspect().candidates).toEqual({nextEpisode: next});
+  });
+
+  it('recognizes the observed autoplay-off offer without using the countdown for timing', () => {
+    offer();
+    overlay().querySelector('[data-testid="up_next"]')!.outerHTML = readFileSync('fixtures/hbomax/up-next-off-es.html','utf8');
+    const next = overlay().querySelector<HTMLButtonElement>('[data-testid="player-ux-up-next-button"]')!;
+    expect(adapter().inspect().candidates.credits).toBe(next);
+  });
+
+  it.each(['hidden','disabled','aria-disabled','inert','detached','duplicate','wrong-label','wrong-name','outside-offer','hidden-offer','menu'])(
+    'rejects an unsafe next control: %s', reason => {
+      const next = offer();
+      if (reason === 'hidden') next.hidden = true;
+      if (reason === 'disabled') next.disabled = true;
+      if (reason === 'aria-disabled') next.setAttribute('aria-disabled','true');
+      if (reason === 'inert') next.setAttribute('inert','');
+      if (reason === 'detached') next.remove();
+      if (reason === 'duplicate') next.after(next.cloneNode(true));
+      if (reason === 'wrong-label') next.querySelector('[data-testid="player-ux-up-next-label"]')!.textContent = 'Ver tráiler';
+      if (reason === 'wrong-name') next.setAttribute('aria-label','Reproducir recomendación');
+      if (reason === 'outside-offer') overlay().append(next);
+      if (reason === 'hidden-offer') overlay().querySelector<HTMLElement>('[data-testid="up_next"]')!.style.visibility = 'hidden';
+      if (reason === 'menu') overlay().insertAdjacentHTML('beforeend','<button data-testid="player-ux-ipd-dismiss">Cerrar</button>');
+      expect(adapter().inspect().candidates).toEqual({});
+    },
+  );
+
+  it('fails closed in an unobserved locale and after leaving the episode', () => {
+    offer();
+    document.documentElement.lang = 'en';
+    expect(adapter().inspect().capabilities.credits.supported).toBe(false);
+    expect(adapter().inspect().candidates).toEqual({});
+    document.documentElement.lang = 'es';
+    currentUrl = 'https://play.hbomax.com/';
+    expect(adapter().inspect().candidates).toEqual({});
   });
 });

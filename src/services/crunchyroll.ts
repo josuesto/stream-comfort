@@ -1,3 +1,4 @@
+import { episodeIdFromLink } from '../shared/episodes';
 import { isControlVisible } from '../core/engine';
 import type { Capabilities, PlaybackSnapshot, ServiceAdapter } from '../shared/types';
 
@@ -11,16 +12,13 @@ export const SELECTORS = {
 } as const;
 
 export function episodeIdFromUrl(value: string): string | null {
-  try {
-    const url = new URL(value);
-    if (url.protocol !== 'https:' || url.hostname !== 'www.crunchyroll.com') return null;
-    return url.pathname.match(/^\/(?:[a-z]{2}-[a-z]{2}\/)?watch\/([A-Z0-9]+)(?:\/|$)/)?.[1] ?? null;
-  } catch { return null; }
+  return episodeIdFromLink('crunchyroll', value);
 }
 
 const capabilities: Capabilities = {
+  selectedEpisode: { supported: true, detail: 'Omite solo los episodios de tu lista usando el botón siguiente visible.' },
   intro: { supported: true, detail: 'Control «Saltar intro» verificado en español.' },
-  recap: { supported: false, detail: 'Aún no se ha verificado un control real de resumen.' },
+  recap: { supported: false, detail: 'Crunchyroll no ofrece un control de resumen en el reproductor inspeccionado.' },
   credits: { supported: true, detail: 'Requiere «Saltar créditos» y el botón siguiente visibles. Puede omitir escenas finales.' },
   nextEpisode: { supported: true, detail: 'Solo al finalizar realmente el vídeo y con el botón siguiente visible.' },
 };
@@ -65,6 +63,7 @@ export function createCrunchyrollAdapter(
         if (label === 'Saltar intro' && text === label) result.candidates.intro = skip;
         if (label === 'Saltar créditos' && text === label && next && !video.ended) result.candidates.credits = next;
       }
+      if (next && !video.ended && !next.disabled && next.getAttribute('aria-disabled') !== 'true' && visible(next)) result.candidates.selectedEpisode = next;
       if (next && video.ended) result.candidates.nextEpisode = next;
       return result;
     },

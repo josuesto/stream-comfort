@@ -22,6 +22,7 @@ export function createServiceIntegration(doc:Document, getUrl:()=>string): Servi
     manual:{
       seek:'[data-testid="player-ux-scrubber-position"],[data-testid="player-ux-skip-back-button"],[data-testid="player-ux-skip-forward-button"]',
       skip:HBO_SELECTORS.skip,
+      next:`${HBO_SELECTORS.next},${HBO_SELECTORS.cancelNext}`,
       playPause:'[data-testid="player-ux-play-pause-button"]',
       quiet:'[data-testid="player-ux-volume-button"]',
     },

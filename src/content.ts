@@ -59,9 +59,22 @@ function onManualIntent(event: Event): void {
   engine.manualInteraction(event.target);
 }
 
+function onVideoEnded(event: Event): void {
+  if (disposed) return;
+  // HBO removes its player in its own ended handler when native autoplay is off.
+  // Capture the genuine media boundary before target handlers tear down the UI.
+  // Unlike mutation batching, this must stay synchronous; the engine still
+  // revalidates video.ended, identity, settings and the visible native control.
+  try {
+    bindPlayer();
+    if (event.target === video) engine.step();
+  } catch { initialized = false; }
+}
+
 document.addEventListener('pointerdown', onManualIntent, true);
 document.addEventListener('click', onManualIntent, true);
 document.addEventListener('keydown', onManualIntent, true);
+document.addEventListener('ended', onVideoEnded, true);
 const treeObserver = new MutationObserver(schedule);
 treeObserver.observe(document.documentElement, {childList:true, subtree:true});
 for (const name of ['visibilitychange', 'fullscreenchange']) document.addEventListener(name, schedule);
@@ -119,6 +132,7 @@ window.addEventListener('pagehide', (event: PageTransitionEvent) => {
   treeObserver.disconnect();
   playerObserver.disconnect();
   engine.dispose();
+  document.removeEventListener('ended', onVideoEnded, true);
 }, {once:true});
 
 }

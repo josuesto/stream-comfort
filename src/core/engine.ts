@@ -18,7 +18,7 @@ interface EpisodeContext {
   quarantined: boolean;
 }
 
-const PRIORITY: readonly Action[] = ['intro', 'recap', 'credits', 'nextEpisode'];
+const PRIORITY: readonly Action[] = ['selectedEpisode', 'intro', 'recap', 'credits', 'nextEpisode'];
 const MAX_EPISODES = 64;
 type LedgerEntry = Action | 'advance';
 
@@ -96,6 +96,7 @@ export class AutomationEngine {
     const state = this.getState();
     return {
       service: this.adapter.id,
+      episodeId: snapshot.episodeId,
       pageSupported: Boolean(snapshot.episodeId && snapshot.player),
       playerReady: Boolean(snapshot.video && snapshot.video.readyState >= 2 && !this.context?.quarantined),
       paused: state.paused,
@@ -199,6 +200,7 @@ export class AutomationEngine {
   private canAct(snapshot: PlaybackSnapshot, action: Action, element: HTMLElement): boolean {
     const { settings, paused } = this.getState();
     if (!settings.enabled || !settings.platforms[this.adapter.id] || paused || this.held || !settings.services[this.adapter.id][action]) return false;
+    if (action === 'selectedEpisode' && !settings.episodeLists[this.adapter.id].includes(snapshot.episodeId!)) return false;
     if (!snapshot.capabilities[action].supported || !snapshot.player?.contains(element)) return false;
     if (!element.isConnected || !this.visible(element) || this.manuallySuppressed.has(element)) return false;
     for (let node: HTMLElement | null = element; node; node = node.parentElement) {
@@ -207,7 +209,8 @@ export class AutomationEngine {
     const video = snapshot.video;
     if (!video || (action === 'nextEpisode' ? !video.ended : (video.paused || video.ended))) return false;
     const entries = this.ledger.get(snapshot.episodeId!);
-    return !entries?.has(action) && !(this.isAdvance(action) && entries?.has('advance'));
+    // Once navigation is requested, no other action may touch the old episode.
+    return !entries?.has(action) && !entries?.has('advance');
   }
 
   private clearDisappearedSuppression(snapshot: PlaybackSnapshot): void {
@@ -224,7 +227,7 @@ export class AutomationEngine {
   }
 
   private isAdvance(action: Action): boolean {
-    return action === 'credits' || action === 'nextEpisode';
+    return action === 'credits' || action === 'nextEpisode' || action === 'selectedEpisode';
   }
 
   private entriesFor(episodeId: string): Set<LedgerEntry> {

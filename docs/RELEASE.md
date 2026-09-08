@@ -1,28 +1,26 @@
-# Versión 0.2: Crunchyroll y HBO Max
+# Versión 0.3.1: avance de HBO y selección de episodios
 
-Objetivo: automatizar únicamente controles reales del reproductor web inspeccionado. La base 0.1 de Crunchyroll se amplía con intros y resúmenes de HBO Max, y un panel «Plataformas» para habilitar cada servicio por separado. Se conserva la separación entre motor compartido, registro de servicios y adaptadores.
+La versión añade la oferta nativa de siguiente episodio de HBO a dos opciones distintas: créditos y final real. Implementa una lista explícita de episodios de Crunchyroll sin inferir una secuencia de catálogo. Conserva los interruptores global, de plataforma y de cada acción.
 
 ## Criterios de aceptación
 
-1. Intro y resumen tienen preferencias independientes. Solo se activa un control visible, habilitado y reconocido dentro del reproductor actual. Una función sin evidencia queda deshabilitada y explicada.
-2. Saltar créditos y avanzar al terminar son opciones distintas, desactivadas inicialmente. Un botón permanente de siguiente episodio no identifica créditos. Se necesita una señal explícita del servicio para créditos; el final real del elemento de vídeo permite avanzar al terminar.
-3. Interruptor global, botón «Plataformas» con switches independientes, ajustes del servicio de la pestaña actual, pausa temporal y estado de compatibilidad en un popup accesible, sin overlays. Apagar o encender no modifica las acciones guardadas. Ambas plataformas están habilitadas inicialmente, con créditos y siguiente episodio apagados.
-4. Preferencias locales validadas. Pausa de pestaña conservada durante navegación y recargas, eliminada al cerrar la pestaña o reiniciar Chrome.
-5. Como máximo un intento por acción y episodio mientras el identificador esté en el registro de los últimos 64 episodios con acciones, en memoria del documento. Créditos y siguiente episodio comparten límite de avance. Ningún clic sobre elementos desconectados, ocultos, ambiguos o correspondientes a otra navegación.
-6. Interacción manual cancela acciones pendientes. Pausar o buscar manualmente inhibe la automatización durante ese episodio hasta reanudarla explícitamente desde el popup.
-7. Cambios de episodio, navegación SPA y pantalla completa funcionan sin recargas adicionales. No se modifica currentTime ni se usan tiempos de contenido inventados.
-8. Pruebas de detección, preferencias, duplicados y navegación. Compilación MV3 cargable en Chrome, instrucciones y separación explícita entre pruebas con fixtures y verificación real.
+1. Solo activar controles reconocidos, visibles y habilitados del reproductor actual. Intro, resumen, créditos, final y lista tienen preferencias independientes.
+2. Todas las opciones que cambian de episodio están apagadas inicialmente. Créditos necesita la señal explícita del servicio; final necesita que el vídeo haya terminado; selección necesita coincidencia exacta con una lista elegida.
+3. Como máximo un intento de avance por episodio mientras esté en el registro de 64 episodios del documento. Tras solicitar avance no se activan otros controles del episodio anterior. Revalidar ajustes, control, vídeo e identidad justo antes del clic.
+4. Pausa, búsqueda, salto y cancelación manual tienen prioridad. Pausa explícita de pestaña conservada en navegación y recargas. Preferencias conservadas al apagar y encender.
+5. Navegación SPA, eventos de nueva carga y reemplazo de vídeo descartan controles antiguos. La URL nueva por sí sola no libera controles del vídeo anterior.
+6. Popup accesible con panel Plataformas, funciones sin soporte explicadas, lista editable, pausa y última acción. Ningún overlay.
+7. Listas de hasta 100 IDs locales, sin historial ni APIs privadas. Enlaces inválidos rechazan la lista entera; vaciarla apaga su interruptor. No se activa al migrar desde versiones anteriores.
+8. Build MV3, fuente completa, pruebas y documentación que distinguen fixtures de ejecución real.
 
-## Límites de plataforma y alcance
+Los criterios de lógica están cubiertos por las pruebas. Los casos de ejecución instalada que faltan están identificados en VERIFICATION.md; no se presentan como aprobados.
 
-Los DOM de Crunchyroll y HBO Max no son APIs públicas estables. Solo se admiten las variantes inspeccionadas en español; otras variantes fallan sin hacer clic. El servicio decide qué episodios tienen controles de salto. HBO Max admite intro y resumen; créditos y siguiente episodio quedan deshabilitados hasta verificar sus controles. Crunchyroll admite intro, créditos y siguiente episodio, pero no resumen. No se omiten anuncios ni se alteran DRM, suscripciones o restricciones regionales. Desactivar el avance de esta extensión no desactiva la reproducción automática propia del servicio.
+## Evidencia y límites
 
-La lista de episodios se investiga por separado. Las rutas observadas contienen identificadores estables de vídeo y las páginas de catálogo muestran enlaces a episodios, pero no se ha validado una secuencia completa y fiable durante la reproducción. Números de episodio, doblajes y temporadas no bastan para inferirla. La versión no incluye una lista que pueda saltar episodios erróneos.
+Se inspeccionaron los reproductores reales antes de implementar selectores. HBO reutiliza player-ux-skip-button para «Omitir intro», «Omitir resumen» y «Saltar» promocional; solo los dos primeros se automatizan. Su oferta up_next contiene player-ux-up-next-container, player-ux-up-next-button y player-ux-up-next-label. Se observó el nombre accesible con cuenta atrás y el estado con autoplay apagado. Se pulsó la oferta activa y se confirmó el cambio de episodio.
 
-No hay telemetría, sincronización remota, APIs privadas, guardado de historial ni transmisión de contenido. Los identificadores usados para prevenir duplicados permanecen en memoria del documento y son limitados.
+La [ayuda oficial de HBO](https://help.hbomax.com/us/Answer/Detail/000002541) identifica esa oferta como aviso de créditos. El adaptador no usa los dígitos del contador para decidir tiempos. El mismo control puede usarse al final real si el servicio lo mantiene visible; su autoplay propio puede adelantarse.
 
-## Evidencia previa a selectores
+Crunchyroll dispone de un botón permanente de siguiente episodio. Permite omitir un ID que el usuario haya seleccionado sin inferir qué episodio viene después. HBO no presenta ese control durante todo el episodio y el panel observado carga solo parte de una temporada: su lista se mantiene separada. Crunchyroll no expuso un control de resumen; la [ayuda oficial](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature) indica que Skip Intro no cubre resúmenes.
 
-Inspección real el 7 de septiembre de 2026, Chrome, Crunchyroll en español de España. El reproductor está en el documento principal, contenedor `#player-container`, controles `[data-testid="player-controls-root"]`, vídeo HTML y botón permanente `[data-testid="next-episode-button"]`. El botón de salto contiene `[data-testid="skip-intro-icon"]`; cuando no hay salto, permanece oculto con `aria-hidden="true"` y texto vacío. La presencia del icono por sí sola nunca autoriza un salto. Se recopilan los estados visibles antes de implementar sus detectores.
-
-HBO Max se inspeccionó el mismo día en `play.hbomax.com`, idioma `es-419`. El reproductor principal usa `playerContainer`, vídeo `VideoElement` y grupo `overlay-root`. Su botón `player-ux-skip-button` se reutiliza para «Saltar» en promociones, «Omitir resumen» y «Omitir intro». Solo las dos últimas etiquetas, con texto y `aria-label` coincidentes y control visible, permiten actuar. El contenedor conserva texto al ocultarse con `visibility: hidden`. Los fixtures reducidos documentan estos estados sin datos de cuenta, fuentes de vídeo ni identificadores reales de episodios.
+Solo se anuncian las variantes de reproductor y etiquetas españolas observadas. No se alteran anuncios, DRM ni controles de acceso. El avance nativo de cada plataforma sigue siendo independiente.

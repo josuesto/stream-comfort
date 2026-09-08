@@ -1,4 +1,5 @@
 import { ACTIONS, SERVICES, isServiceId, type Action, type ServiceId, type Settings } from './types';
+import { validateEpisodeList } from './episodes';
 
 export const SETTINGS_KEY = 'settings';
 export type SettingKey = 'enabled' | Action;
@@ -9,9 +10,10 @@ export function defaultSettings(): Settings {
     version: 1,
     enabled: true,
     platforms: { crunchyroll: true, hbomax: true },
+    episodeLists: { crunchyroll: [], hbomax: [] },
     services: {
-      crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false },
-      hbomax: { intro: true, recap: true, credits: false, nextEpisode: false },
+      crunchyroll: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
+      hbomax: { intro: true, recap: true, credits: false, nextEpisode: false, selectedEpisode: false },
     },
   };
 }
@@ -36,7 +38,10 @@ export function normalizeSettings(value: unknown): Settings {
   if (typeof enabled === 'boolean') settings.enabled = enabled;
   const services = own(value, 'services');
   const platforms = own(value, 'platforms');
+  const lists = own(value, 'episodeLists');
   for (const serviceId of SERVICES) {
+    const list = isRecord(lists) ? validateEpisodeList(serviceId, own(lists, serviceId)) : null;
+    if (list) settings.episodeLists[serviceId] = list;
     const platformValue = isRecord(platforms) ? own(platforms, serviceId) : undefined;
     if (typeof platformValue === 'boolean') settings.platforms[serviceId] = platformValue;
     const service = isRecord(services) ? own(services, serviceId) : undefined;
@@ -45,8 +50,19 @@ export function normalizeSettings(value: unknown): Settings {
       const actionValue = own(service, action);
       if (typeof actionValue === 'boolean') settings.services[serviceId][action] = actionValue;
     }
+    if (!list) settings.services[serviceId].selectedEpisode = false;
   }
   return settings;
+}
+
+export function updateEpisodeList(settings: Settings, service: ServiceId, episodeIds: unknown): Settings {
+  if (!isServiceId(service)) throw new TypeError('Invalid service');
+  const list = validateEpisodeList(service, episodeIds);
+  if (!list) throw new TypeError('Invalid episode selection');
+  const next = normalizeSettings(settings);
+  next.episodeLists[service] = list;
+  if (!list.length) next.services[service].selectedEpisode = false;
+  return next;
 }
 
 /** Apply one validated setting without mutating the caller's object. */

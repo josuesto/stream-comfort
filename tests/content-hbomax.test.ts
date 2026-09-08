@@ -7,6 +7,7 @@ import { defaultSettings, SETTINGS_KEY } from '../src/shared/settings';
 import type { Settings, TabStatus } from '../src/shared/types';
 
 const markup = readFileSync(resolve('fixtures/hbomax/player-es.html'), 'utf8');
+const nextMarkup = readFileSync(resolve('fixtures/hbomax/up-next-es.html'), 'utf8');
 const firstRoute = '/video/watch/11111111-1111-1111-1111-111111111111';
 const secondRoute = '/video/watch/22222222-2222-2222-2222-222222222222';
 type MessageListener = Parameters<typeof chrome.runtime.onMessage.addListener>[0];
@@ -110,6 +111,93 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
+describe('HBO advancement wiring', () => {
+  function mountNext() {
+    showSkip(null);
+    control('up_next').outerHTML = nextMarkup;
+    return control('player-ux-up-next-button');
+  }
+
+  it('keeps advancement off until enabled, and shares one attempt across credits and end', async () => {
+    const next = mountNext();
+    const click = vi.spyOn(next,'click');
+    await import('../src/content');
+    await tick();
+    expect(click).not.toHaveBeenCalled();
+    const settings = defaultSettings();
+    settings.services.hbomax.credits = true;
+    settings.services.hbomax.nextEpisode = true;
+    changeSettings(settings); await tick();
+    expect(click).toHaveBeenCalledOnce();
+    media({ended:true,paused:true});
+    document.querySelector('video')!.dispatchEvent(new Event('ended'));
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('waits for video.ended when only end-of-video advancement is enabled', async () => {
+    const click = vi.spyOn(mountNext(),'click');
+    const settings = defaultSettings();
+    settings.services.hbomax.nextEpisode = true;
+    storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
+    await import('../src/content'); await tick();
+    expect(click).not.toHaveBeenCalled();
+    media({ended:true,paused:true});
+    document.querySelector('video')!.dispatchEvent(new Event('ended'));
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('clicks synchronously at the real end before HBO removes its player', async () => {
+    const next = mountNext();
+    const click = vi.spyOn(next,'click');
+    const settings = defaultSettings();
+    settings.services.hbomax.nextEpisode = true;
+    storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
+    await import('../src/content'); await tick();
+    const video = document.querySelector('video')!;
+    video.addEventListener('ended', () => {
+      expect(click).toHaveBeenCalledOnce();
+      control('playerContainer').remove();
+    });
+    media({ended:true,paused:true});
+    video.dispatchEvent(new Event('ended'));
+    expect(click).toHaveBeenCalledOnce();
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('never treats an ended event alone, or one from another video, as permission to advance', async () => {
+    const click = vi.spyOn(mountNext(),'click');
+    const settings = defaultSettings();
+    settings.services.hbomax.nextEpisode = true;
+    storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
+    await import('../src/content'); await tick();
+    document.querySelector('video')!.dispatchEvent(new Event('ended'));
+    expect(click).not.toHaveBeenCalled();
+    media({ended:true,paused:true});
+    const unrelated = document.createElement('video');
+    document.body.append(unrelated);
+    unrelated.dispatchEvent(new Event('ended'));
+    expect(click).not.toHaveBeenCalled();
+  });
+
+  it('respects cancelling native autoplay before a pending automation step', async () => {
+    const click = vi.spyOn(mountNext(),'click');
+    await import('../src/content'); await tick();
+    const settings = defaultSettings();
+    settings.services.hbomax.credits = true;
+    changeSettings(settings);
+    trustedInput('pointerdown',control('player-ux-up-next-dismiss'));
+    await tick();
+    expect(status().manualHold).toBe(true);
+    expect(click).not.toHaveBeenCalled();
+    message({type:'TAB_PAUSE_CHANGED',paused:false});
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+  });
+});
+
 describe('HBO content bootstrap and preferences', () => {
   it('selects HBO and clicks recap then intro once each when their shared node changes', async () => {
     showSkip('Omitir resumen');
@@ -186,7 +274,7 @@ describe('HBO content bootstrap and preferences', () => {
     expect(click).not.toHaveBeenCalled();
   });
 
-  it('ignores a promotional Saltar control and reports unsupported advancement', async () => {
+  it('ignores a promotional Saltar control while offering advancement settings', async () => {
     showSkip('Saltar');
     const settings = defaultSettings();
     settings.services.hbomax.credits = true;
@@ -199,8 +287,8 @@ describe('HBO content bootstrap and preferences', () => {
     document.querySelector('video')!.dispatchEvent(new Event('ended'));
     await tick();
     expect(click).not.toHaveBeenCalled();
-    expect(status().capabilities.credits.supported).toBe(false);
-    expect(status().capabilities.nextEpisode.supported).toBe(false);
+    expect(status().capabilities.credits.supported).toBe(true);
+    expect(status().capabilities.nextEpisode.supported).toBe(true);
   });
 });
 

@@ -17,11 +17,11 @@ describe('observed Crunchyroll DOM',()=>{
   });
   it('does not act on the persistent hidden skip button',()=>{
     document.querySelector('button')!.setAttribute('aria-hidden','true');
-    expect(adapter().inspect().candidates).toEqual({});
+    expect(adapter().inspect().candidates).toEqual({selectedEpisode: document.querySelector('[data-testid="next-episode-button"]')});
   });
   it('requires text and accessible name to agree',()=>{
     document.querySelector('button')!.setAttribute('aria-label','Saltar créditos');
-    expect(adapter().inspect().candidates).toEqual({});
+    expect(adapter().inspect().candidates).toEqual({selectedEpisode: document.querySelector('[data-testid="next-episode-button"]')});
   });
   it('uses an explicit credits prompt as signal and normal next button as action',()=>{
     const skip=document.querySelector('button')!;

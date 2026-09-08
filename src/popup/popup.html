@@ -37,12 +37,13 @@
       </label>
 
       <section class="service-section" aria-labelledby="service-heading">
-        <div class="section-heading"><h2 id="service-heading">Esta pestaña</h2><span class="version">0.2</span></div>
+        <div class="section-heading"><h2 id="service-heading">Esta pestaña</h2><span class="version">0.3.1</span></div>
         <div class="page-state" id="page-state" data-state="loading">
           <span class="state-dot" aria-hidden="true"></span>
           <p id="status" role="status">Comprobando esta pestaña…</p>
         </div>
         <p class="page-detail" id="status-detail">Los saltos usan los controles del reproductor.</p>
+        <p class="tab-note" id="last-action" hidden></p>
 
         <div class="actions">
           <label class="toggle-row" for="intro">
@@ -61,11 +62,12 @@
             <span><span class="row-title" id="nextEpisode-label">Siguiente episodio</span><span class="row-detail" id="nextEpisode-detail">Avanza cuando termine el vídeo.</span></span>
             <input id="nextEpisode" type="checkbox" role="switch" aria-labelledby="nextEpisode-label" aria-describedby="nextEpisode-detail" disabled>
           </label>
-          <label class="toggle-row unavailable-row" for="episode-list">
-            <span><span class="row-title" id="episode-list-label">Saltar episodios elegidos</span><span class="row-detail" id="episode-list-detail">No disponible. Secuencia sin verificar.</span></span>
-            <input id="episode-list" type="checkbox" role="switch" aria-labelledby="episode-list-label" aria-describedby="episode-list-detail" disabled>
+          <label class="toggle-row" for="selectedEpisode">
+            <span><span class="row-title" id="selectedEpisode-label">Saltar episodios elegidos</span><span class="row-detail" id="selectedEpisode-detail">Omite solo los episodios de tu lista.</span></span>
+            <input id="selectedEpisode" type="checkbox" role="switch" aria-labelledby="selectedEpisode-label" aria-describedby="selectedEpisode-detail" disabled>
           </label>
         </div>
+        <button id="edit-episodes" class="small-button" type="button" disabled>Elegir episodios</button>
       </section>
 
       <section class="tab-section" aria-label="Control de esta pestaña">
@@ -74,6 +76,16 @@
         <p class="tab-note" id="tab-note">La pausa dura hasta que la reanudes o cierres la pestaña.</p>
       </section>
       </div>
+
+      <section id="episodes-panel" aria-labelledby="episodes-heading" hidden>
+        <h2 id="episodes-heading">Episodios de Crunchyroll</h2>
+        <p class="page-detail">Pega un enlace de episodio por línea, hasta 100. Al abrir uno de ellos, se pulsará «Siguiente episodio» si está visible. Su interruptor se controla por separado.</p>
+        <label class="row-title editor-label" for="episode-links">Enlaces que quieres omitir</label>
+        <textarea id="episode-links" rows="7" spellcheck="false" aria-describedby="episode-list-help"></textarea>
+        <p class="tab-note" id="episode-list-help">Solo se guardan los identificadores que elijas. No se recopila tu historial ni se deducen episodios de relleno.</p>
+        <button id="add-current-episode" class="small-button" type="button">Añadir episodio actual</button>
+        <div class="editor-actions"><button id="save-episodes" type="button">Guardar lista</button><button id="cancel-episodes" type="button">Volver</button></div>
+      </section>
 
       <div class="error" id="error-panel" hidden>
         <p id="error" role="alert"></p>

@@ -1,4 +1,5 @@
 import { ACTIONS, SERVICES, isServiceId, type Action, type Request, type ServiceId, type Settings, type TabStatus } from '../shared/types';
+import { episodeIdFromLink, episodeLink, validEpisodeId, validateEpisodeList } from '../shared/episodes';
 
 type PopupChrome = Pick<typeof chrome, 'tabs' | 'runtime' | 'storage'>;
 type SettingKey = 'enabled' | Action;
@@ -9,6 +10,7 @@ const descriptions: Record<Action, string> = {
   recap: 'Activa el botón de resumen.',
   credits: 'Avanza durante los créditos. Puede omitir escenas finales.',
   nextEpisode: 'Avanza cuando termine el vídeo.',
+  selectedEpisode: 'Omite solo los episodios de tu lista.',
 };
 const unavailable = 'Abre un episodio compatible para configurar esta función.';
 const serviceNames: Record<ServiceId, string> = { crunchyroll: 'Crunchyroll', hbomax: 'HBO Max' };
@@ -20,12 +22,14 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function isSettingsResponse(value: unknown): value is SettingsResponse {
   if (!isObject(value) || value.ok !== true || !isObject(value.settings)) return false;
   const settings = value.settings;
-  if (settings.version !== 1 || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms)) return false;
+  if (settings.version !== 1 || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms) || !isObject(settings.episodeLists)) return false;
   const services = settings.services;
   const platforms = settings.platforms;
+  const lists = settings.episodeLists;
   return SERVICES.every(service => {
     const actions = services[service];
-    return typeof platforms[service] === 'boolean' && isObject(actions) && ACTIONS.every(action => typeof actions[action] === 'boolean');
+    return typeof platforms[service] === 'boolean' && validateEpisodeList(service, lists[service]) !== null
+      && isObject(actions) && ACTIONS.every(action => typeof actions[action] === 'boolean');
   });
 }
 
@@ -33,6 +37,7 @@ function isTabStatus(value: unknown): value is TabStatus {
   if (!isObject(value) || !isServiceId(value.service) || !isObject(value.capabilities)) return false;
   const capabilities = value.capabilities;
   return ['pageSupported', 'playerReady', 'paused', 'manualHold'].every(key => typeof value[key] === 'boolean')
+    && (value.episodeId === null || validEpisodeId(value.service, value.episodeId))
     && (value.lastAction === null || ACTIONS.includes(value.lastAction as Action))
     && ACTIONS.every(action => {
       const capability = capabilities[action];
@@ -40,7 +45,16 @@ function isTabStatus(value: unknown): value is TabStatus {
     });
 }
 
-/** The popup polls only while open. It never reads a tab URL or page content. */
+function sameStatus(a: TabStatus | null, b: TabStatus | null): boolean {
+  if (!a || !b) return a === b;
+  return a.service === b.service && a.episodeId === b.episodeId
+    && a.pageSupported === b.pageSupported && a.playerReady === b.playerReady
+    && a.paused === b.paused && a.manualHold === b.manualHold && a.lastAction === b.lastAction
+    && ACTIONS.every(action => a.capabilities[action].supported === b.capabilities[action].supported
+      && a.capabilities[action].detail === b.capabilities[action].detail);
+}
+
+/** Poll only while open. Request the adapter's current ID; never scan browsing history. */
 export async function mountPopup(doc: Document, api: PopupChrome) {
   function element<T extends HTMLElement>(id: string): T {
     const found = doc.getElementById(id);
@@ -60,7 +74,12 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   let platformsOpen = false;
   let pauseSaving = false;
   let polling = false;
+  let statusRevision = 0;
   let disposed = false;
+  let editorService: ServiceId | null = null;
+  let editorEpisode: string | null = null;
+  let listSaving = false;
+  const linksInput = element<HTMLTextAreaElement>('episode-links');
 
   const send = (message: Request): Promise<unknown> => api.runtime.sendMessage(message);
   function setError(message: string) {
@@ -72,7 +91,13 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     if (disposed) return;
     switches.enabled.checked = saving?.key === 'enabled' ? saving.value : settings?.enabled ?? false;
     switches.enabled.disabled = !settings || saving !== null || platformSaving !== null;
-    element('playback-settings').hidden = platformsOpen;
+    element('playback-settings').hidden = platformsOpen || editorService !== null;
+    element('episodes-panel').hidden = editorService === null;
+    platformsButton.disabled = listSaving;
+    linksInput.disabled = listSaving;
+    element<HTMLButtonElement>('save-episodes').disabled = listSaving;
+    element<HTMLButtonElement>('cancel-episodes').disabled = listSaving;
+    element<HTMLButtonElement>('add-current-episode').disabled = listSaving || !editorEpisode || status?.episodeId !== editorEpisode || status.service !== editorService;
     element('platforms-panel').hidden = !platformsOpen;
     platformsButton.textContent = platformsOpen ? 'Volver' : 'Plataformas';
     platformsButton.setAttribute('aria-expanded', String(platformsOpen));
@@ -94,6 +119,19 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
           : capability.detail
         : unavailable;
     }
+    const selectedSupported = Boolean(status?.pageSupported && status.capabilities.selectedEpisode.supported);
+    const count = service && settings ? settings.episodeLists[service].length : 0;
+    element<HTMLButtonElement>('edit-episodes').disabled = !settings || !selectedSupported || saving !== null || platformSaving !== null;
+    element('edit-episodes').hidden = !selectedSupported;
+    element('edit-episodes').textContent = count ? `Editar lista (${count})` : 'Elegir episodios';
+    if (selectedSupported) {
+      element('selectedEpisode-detail').textContent = count ? `${count} episodios elegidos. Usa el botón siguiente visible.` : 'Elige episodios para activar esta opción.';
+      if (!count) switches.selectedEpisode.disabled = true;
+    }
+    const lastAction = status?.lastAction;
+    const actionNames: Record<Action, string> = {intro:'intro', recap:'resumen', credits:'créditos', nextEpisode:'siguiente episodio', selectedEpisode:'episodio elegido'};
+    element('last-action').hidden = !lastAction;
+    element('last-action').textContent = lastAction ? `Última acción: ${actionNames[lastAction]}.` : '';
 
     let state = 'waiting';
     let headline = 'Esperando al reproductor';
@@ -154,15 +192,23 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   async function refreshStatus() {
     if (disposed || polling || pauseSaving) return;
     polling = true;
+    const revision = statusRevision;
+    let next: TabStatus | null = null;
     try {
       const response: unknown = tabId === null ? null : await api.tabs.sendMessage(tabId, { type: 'GET_STATUS' } satisfies Request);
-      if (!disposed) status = isTabStatus(response) ? response : null;
-    } catch {
-      if (!disposed) status = null;
-    } finally {
+      next = isTabStatus(response) ? response : null;
+    } catch { /* A missing receiver is an unsupported page. */ }
+    finally {
       polling = false;
-      statusLoaded = true;
-      render();
+      if (!disposed && revision === statusRevision) {
+        const changed = !statusLoaded || !sameStatus(status, next);
+        status = next;
+        statusLoaded = true;
+        // Chrome sizes its native popup from the document. Rewriting identical
+        // text/attributes every second creates needless layout/resize work and
+        // can make an open popup jump. Leave its DOM completely still when idle.
+        if (changed) render();
+      }
     }
   }
 
@@ -212,6 +258,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   async function togglePause() {
     if (tabId === null || !status?.pageSupported || pauseSaving) return;
     const paused = !(status.paused || status.manualHold);
+    statusRevision += 1;
     pauseSaving = true;
     setError('');
     render();
@@ -228,6 +275,51 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     }
   }
 
+  function openEpisodes() {
+    if (!settings || !status?.pageSupported || !status.capabilities.selectedEpisode.supported || saving || platformSaving) return;
+    editorService = status.service;
+    editorEpisode = status.episodeId;
+    linksInput.value = settings.episodeLists[editorService].map(id => episodeLink(editorService!, id)).join('\n');
+    element('episodes-heading').textContent = `Episodios de ${serviceNames[editorService]}`;
+    setError('');
+    render();
+    linksInput.focus();
+  }
+
+  async function saveEpisodes() {
+    if (!editorService || listSaving || !settings) return;
+    const service = editorService;
+    const links = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    const ids = links.map(link => episodeIdFromLink(service, link));
+    const episodeIds = validateEpisodeList(service, ids);
+    if (!episodeIds) {
+      setError(`Usa hasta 100 enlaces válidos de episodios de ${serviceNames[service]}, uno por línea. No se ha guardado ningún cambio.`);
+      return;
+    }
+    listSaving = true;
+    setError('');
+    render();
+    try {
+      const response = await send({type:'SET_EPISODE_LIST', service, episodeIds});
+      if (!isSettingsResponse(response)) throw new Error('Save failed');
+      if (!disposed) { settings = response.settings; editorService = null; }
+    } catch { setError('No se pudo guardar la lista. Tus cambios siguen aquí para volver a intentarlo.'); }
+    finally { listSaving = false; render(); }
+  }
+
+  const editHandler = () => openEpisodes();
+  const saveListHandler = () => { void saveEpisodes(); };
+  const cancelListHandler = () => { if (!listSaving) { editorService = null; setError(''); render(); } };
+  const addCurrentHandler = () => {
+    if (!editorService || !editorEpisode || listSaving || status?.episodeId !== editorEpisode || status.service !== editorService) return;
+    const link = episodeLink(editorService, editorEpisode);
+    const lines = linksInput.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
+    if (!lines.some(line => episodeIdFromLink(editorService!, line) === editorEpisode)) lines.push(link);
+    linksInput.value = lines.join('\n');
+  };
+  const editorHandlers = [['edit-episodes',editHandler], ['save-episodes',saveListHandler], ['cancel-episodes',cancelListHandler], ['add-current-episode',addCurrentHandler]] as const;
+  for (const [id, handler] of editorHandlers) element(id).addEventListener('click',handler);
+
   const handlers = new Map<HTMLInputElement, () => void>();
   for (const key of ['enabled', ...ACTIONS] as const) {
     const input = switches[key];
@@ -241,7 +333,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     handlers.set(input, handler);
     input.addEventListener('change', handler);
   }
-  const platformsHandler = () => { platformsOpen = !platformsOpen; render(); };
+  const platformsHandler = () => { if (listSaving) return; editorService = null; platformsOpen = !platformsOpen; render(); };
   const pauseHandler = () => { void togglePause(); };
   const retryHandler = () => { void loadSettings(); void refreshStatus(); };
   const storageHandler = (_changes: Record<string, chrome.storage.StorageChange>, area: string) => {
@@ -267,6 +359,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     disposed = true;
     clearInterval(interval);
     for (const [input, handler] of handlers) input.removeEventListener('change', handler);
+    for (const [id, handler] of editorHandlers) element(id).removeEventListener('click', handler);
     platformsButton.removeEventListener('click', platformsHandler);
     pauseButton.removeEventListener('click', pauseHandler);
     element('retry').removeEventListener('click', retryHandler);
