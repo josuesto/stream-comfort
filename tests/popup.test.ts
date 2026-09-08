@@ -308,9 +308,36 @@ describe('popup controls', () => {
     await change('recap', true);
     expect(input('recap').checked).toBe(true);
     expect(input('recap').disabled).toBe(false);
-    expect(document.getElementById('recap-detail')?.textContent).toContain('HBO Max');
+    expect(document.getElementById('recap-detail')?.textContent).toBe(messages.es.recapDetail);
     expect(document.getElementById('tab-limitations')?.hidden).toBe(false);
     expect(f.settings().actions.recap).toBe(true);
+  });
+
+  it('shows recap as available when the Crunchyroll adapter supports it', async () => {
+    const f = fixture();
+    const status = originalStatus('crunchyroll');
+    status.capabilities.recap = { supported: true, detail: 'Control «Saltar resumen» verificado.' };
+    f.setStatus(status);
+    await start(f);
+    await change('recap', true);
+    expect(input('recap').checked).toBe(true);
+    expect(input('recap').disabled).toBe(false);
+    expect(document.getElementById('tab-limitations')?.hidden).toBe(true);
+    expect(document.getElementById('recap-detail')?.textContent).toBe(messages.es.recapDetail);
+  });
+
+  it.each(['en', 'es'] as const)('explains a stale Crunchyroll recap adapter in %s', async language => {
+    const f = fixture();
+    const settings = originalSettings();
+    settings.language = language;
+    settings.actions.recap = true;
+    f.setSettings(settings);
+    const status = originalStatus('crunchyroll');
+    status.capabilities.recap.reason = 'crRecapUnavailable';
+    f.setStatus(status);
+    await start(f);
+    expect(document.getElementById('tab-limitations')?.textContent).toContain(messages[language].crRecapUnavailable);
+    expect(input('recap').disabled).toBe(false);
   });
 
   it('preserves choices through unrelated pages, episode changes, and reopening', async () => {

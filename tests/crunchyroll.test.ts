@@ -4,6 +4,7 @@ import {readFileSync} from 'node:fs';
 import {createCrunchyrollAdapter, episodeIdFromUrl} from '../src/services/crunchyroll';
 
 const fixture=readFileSync('fixtures/player-es.html','utf8');
+const recapFixture=readFileSync('fixtures/player-recap-es.html','utf8');
 const url='https://www.crunchyroll.com/es-es/watch/EPISODE01/title';
 const visible=(e:HTMLElement)=>!e.closest('[hidden],[aria-hidden="true"]');
 const adapter=()=>createCrunchyrollAdapter(document,()=>url,visible);
@@ -59,12 +60,14 @@ describe('observed Crunchyroll DOM',()=>{
     Object.defineProperty(document.querySelector('video'),'ended',{value:true});
     expect(adapter().inspect().candidates.nextEpisode).toBeUndefined();
   });
-  it('marks unobserved recap unsupported',()=>{
-    expect(adapter().inspect().capabilities.recap.supported).toBe(false);
+  it('supports recap detection without treating an intro as a recap',()=>{
+    expect(adapter().inspect().capabilities.recap.supported).toBe(true);
+    expect(adapter().inspect().candidates.recap).toBeUndefined();
   });
   it('clearly marks unverified language labels unsupported',()=>{
     document.documentElement.lang='en';
     expect(adapter().inspect().capabilities.intro.supported).toBe(false);
+    expect(adapter().inspect().capabilities.recap.supported).toBe(false);
     expect(adapter().inspect().capabilities.credits.supported).toBe(false);
     expect(adapter().inspect().candidates.intro).toBeUndefined();
   });
@@ -82,6 +85,35 @@ describe('observed Crunchyroll DOM',()=>{
     expect(adapter().inspect().candidates.intro).toBeUndefined();
     document.querySelector('[data-testid="player-controls-root"]')!.removeAttribute('data-testid');
     expect(adapter().inspect().player).toBeNull();
+  });
+});
+
+describe('observed Crunchyroll recap control',()=>{
+  beforeEach(()=>{document.body.innerHTML=recapFixture;});
+  it('recognizes the native recap independently from intro and advancement',()=>{
+    expect(adapter().inspect().candidates).toEqual({recap:document.querySelector('button')});
+  });
+  it.each(['aria-label','text'])('rejects a mismatched recap %s',field=>{
+    const button=document.querySelector('button')!;
+    if(field==='aria-label') button.setAttribute('aria-label','Saltar intro');
+    else button.querySelector('span')!.textContent='Saltar intro';
+    expect(adapter().inspect().candidates).toEqual({});
+  });
+  it.each(['hidden','disabled','hidden ancestor','ambiguous icon','outside controls','menu','unverified label','unverified locale'])('rejects an unsafe recap: %s',state=>{
+    const button=document.querySelector('button')!;
+    const controls=document.querySelector('[data-testid="player-controls-root"]')!;
+    if(state==='hidden') button.setAttribute('aria-hidden','true');
+    if(state==='disabled') button.disabled=true;
+    if(state==='hidden ancestor') controls.setAttribute('aria-hidden','true');
+    if(state==='ambiguous icon') button.append(document.querySelector('svg')!.cloneNode(true));
+    if(state==='outside controls') document.body.append(button);
+    if(state==='menu') controls.insertAdjacentHTML('beforeend','<div role="menu">Ajustes</div>');
+    if(state==='unverified label') {
+      button.setAttribute('aria-label','Skip Recap');
+      button.querySelector('span')!.textContent='Skip Recap';
+    }
+    if(state==='unverified locale') document.documentElement.lang='en';
+    expect(adapter().inspect().candidates).toEqual({});
   });
 });
 describe('episode identity',()=>{

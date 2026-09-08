@@ -1,0 +1,15 @@
+<!-- Reduced from the live Crunchyroll Spanish recap control observed 2026-09-08.
+     Relevant player hierarchy, label, icon, and visible ARIA state retained.
+     Classes, SVG paths, media sources, account data and content titles omitted.
+     Timeline range is synthetic and never used as a skip boundary. -->
+<div id="player-container" aria-label="Reproductor de vídeo">
+  <div><video playsinline disablepictureinpicture></video></div>
+  <div data-testid="player-controls-root">
+    <button type="button" aria-label="Saltar resumen" aria-hidden="false" tabindex="0"><span>Saltar resumen</span><span><svg aria-hidden="true" data-testid="skip-intro-icon"></svg></span></button>
+    <div data-testid="bottom-controls-autohide">
+      <input type="range" class="timeline-slider" aria-label="Línea de tiempo del vídeo" min="0" max="1" step="0.25">
+      <button type="button" aria-label="Pausa" data-testid="play-pause-button"></button>
+      <button type="button" aria-label="Siguiente episodio" data-testid="next-episode-button"><svg data-testid="next-episode-icon" aria-hidden="true"></svg></button>
+    </div>
+  </div>
+</div>

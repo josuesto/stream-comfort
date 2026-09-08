@@ -18,6 +18,7 @@ export interface Settings {
   platforms: Record<ServiceId, boolean>;
   actions: ActionSettings;
 }
+// Keep the old recap reason readable while a tab still runs a pre-0.4.1 script.
 export const CAPABILITY_REASONS = ['crRecapUnavailable', 'spanishPlayerRequired'] as const;
 export type CapabilityReason = typeof CAPABILITY_REASONS[number];
 export interface Capability { supported: boolean; detail: string; reason?: CapabilityReason }

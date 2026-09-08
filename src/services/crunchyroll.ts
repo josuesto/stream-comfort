@@ -17,7 +17,7 @@ export function episodeIdFromUrl(value: string): string | null {
 
 const capabilities: Capabilities = {
   intro: { supported: true, detail: 'Control «Saltar intro» verificado en español.' },
-  recap: { supported: false, reason: 'crRecapUnavailable', detail: 'Crunchyroll no ofrece un control de resumen en el reproductor inspeccionado.' },
+  recap: { supported: true, detail: 'Control «Saltar resumen» verificado en español; disponible en los episodios que lo ofrecen.' },
   credits: { supported: true, detail: 'Requiere «Saltar créditos» y el botón siguiente visibles. Puede omitir escenas finales.' },
   nextEpisode: { supported: true, detail: 'Solo al finalizar realmente el vídeo y con el botón siguiente visible.' },
 };
@@ -40,6 +40,7 @@ export function createCrunchyrollAdapter(
       const localCapabilities: Capabilities = spanish ? capabilities : {
         ...capabilities,
         intro: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el botón de intro en español.'},
+        recap: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el botón de resumen en español.'},
         credits: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el aviso de créditos en español.'},
       };
       const empty: PlaybackSnapshot = { episodeId, player: null, video: null, candidates: {}, capabilities: localCapabilities };
@@ -54,12 +55,13 @@ export function createCrunchyrollAdapter(
       if ([...controls.querySelectorAll<HTMLElement>('[role="menu"]')].some(visible)) return result;
       const skip = unique<SVGElement>(controls, SELECTORS.skipIcon)?.closest('button') ?? null;
       const next = unique<HTMLButtonElement>(controls, SELECTORS.next);
-      // The icon is reused for credits and remains mounted while hidden.
+      // The icon is reused for recaps/credits and remains mounted while hidden.
       // Require matching visible text AND explicit accessible name for each action.
       if (spanish && skip && controls.contains(skip) && !skip.disabled && skip.getAttribute('aria-hidden') === 'false' && visible(skip)) {
         const label = skip.getAttribute('aria-label')?.trim();
         const text = skip.textContent?.trim();
         if (label === 'Saltar intro' && text === label) result.candidates.intro = skip;
+        if (label === 'Saltar resumen' && text === label) result.candidates.recap = skip;
         if (label === 'Saltar créditos' && text === label && next && !video.ended) result.candidates.credits = next;
       }
       if (next && video.ended) result.candidates.nextEpisode = next;

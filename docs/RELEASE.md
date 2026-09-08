@@ -1,15 +1,14 @@
-# Version 0.4.0: configure once, use on enabled platforms
+# Version 0.4.1: Crunchyroll recap skipping
 
-The popup offers one shared set of intro, recap, credits, and next-episode preferences. Configure them from any tab before starting playback. A static notice says Currently supports Crunchyroll and HBO Max. Platforms controls where automation runs; it no longer selects an independent action profile.
+The shared Skip recaps preference now activates Crunchyroll's observed native “Saltar resumen” button as well as HBO Max's recap control. Preferences remain configurable from any tab. Recap, intro, credits, and next episode stay independent; existing settings are preserved.
 
 ## Acceptance criteria
 
-1. All four action switches can be edited without a supported page, episode, tab ID, or status response. Save locally and retain choices through reopening and navigation.
-2. Both service engines use the same saved choices when playback starts later, and receive updates without a page reload. No popup must remain open.
-3. Preserve global, language, and platform switches. Combine older action profiles conservatively: false on either platform wins, missing fields use previous defaults, matching choices remain. Do not enable new episode advancement implicitly.
-4. Keep current-tab pause, manual hold, and capability status separate from editable preferences. Unavailable controls never trigger actions merely because the shared preference is on.
-5. Retain native-control evidence, duplicate/stale-control prevention, and separate credits versus actual-video-end advancement. No retired episode-list automation returns.
-6. Keep English/Spanish text, keyboard access, fixed popup bounds, and no DOM writes for unchanged status polls.
-7. Deliver source, a loadable MV3 build, focused tests, and honest fixture/preview/live evidence distinctions.
+1. Recognize only the observed Spanish recap control: matching text and accessible name, the existing skip icon, and an unambiguous current player. Require a visible, enabled control with explicit active ARIA state.
+2. Respect the saved recap preference independently of intro. Global/platform off, tab pause, manual hold, paused/seeking media, hidden controls, and unsupported locales prevent automation.
+3. Attempt a recap at most once per episode, even when its control disappears/reappears. Permit a later intro on the same native button. Discard stale controls after navigation until new media is identified.
+4. Explain recap availability in English and Spanish without an HBO-only restriction. An older Crunchyroll content script gets a localized page-reload message.
+5. Add a reduced fixture with direct live provenance and focused regression tests. Report manual native-button verification separately from fixture-tested extension automation.
+6. Keep the current permissions, local settings schema, popup stability, and safe advancement defaults. Deliver the source and loadable build.
 
-Automated and preview results are in [VERIFICATION.md](VERIFICATION.md). Supported player variants remain the observed Spanish web players. Crunchyroll has no observed recap button. Native service autoplay remains independent; credits can skip post-credit scenes. No ad, DRM, subscription, or access-control changes are implemented.
+Controls can be missing on individual episodes; unobserved player languages remain unsupported. No guessed recap boundaries or content timestamps are introduced. See [verification](VERIFICATION.md) and [manual checks](MANUAL-TESTS.md).

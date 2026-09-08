@@ -7,6 +7,7 @@ import { defaultSettings, SETTINGS_KEY } from '../src/shared/settings';
 import type { TabStatus } from '../src/shared/types';
 
 const markup = readFileSync(resolve('fixtures/player-es.html'), 'utf8');
+const recapMarkup = readFileSync(resolve('fixtures/player-recap-es.html'), 'utf8');
 type MessageListener = Parameters<typeof chrome.runtime.onMessage.addListener>[0];
 type StorageListener = Parameters<typeof chrome.storage.onChanged.addListener>[0];
 
@@ -180,6 +181,74 @@ describe('content bootstrap and local preferences', () => {
     storageChanges.forEach(listener => listener({ [SETTINGS_KEY]: { newValue: disabled } }, 'local'));
     tab.resolve({ ok: true, paused: false });
     await tick();
+    expect(click).not.toHaveBeenCalled();
+  });
+});
+
+describe('Crunchyroll recap automation', () => {
+  beforeEach(() => {
+    document.body.innerHTML = recapMarkup;
+    media({ paused: false, ended: false, seeking: false, readyState: 4 });
+  });
+
+  it('honors recap settings independently and does not repeat a consumed recap', async () => {
+    const settings = defaultSettings();
+    settings.actions.recap = false;
+    storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
+    const click = vi.spyOn(intro(), 'click');
+    await import('../src/content');
+    await tick(1200);
+    expect(click).not.toHaveBeenCalled();
+    settings.actions.recap = true;
+    settings.actions.intro = false;
+    storageChanges.forEach(listener => listener({ [SETTINGS_KEY]: { newValue: settings } }, 'local'));
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+    expect(status().lastAction).toBe('recap');
+    intro().setAttribute('aria-hidden', 'true');
+    await tick();
+    intro().setAttribute('aria-hidden', 'false');
+    await tick(2400);
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('allows a later intro on the same native button after a recap', async () => {
+    const click = vi.spyOn(intro(), 'click');
+    await import('../src/content');
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+    showIntro(true);
+    await tick(1200);
+    expect(click).toHaveBeenCalledTimes(2);
+    expect(status().lastAction).toBe('intro');
+    await tick(1200);
+    expect(click).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for new media after navigation before allowing another recap', async () => {
+    const click = vi.spyOn(intro(), 'click');
+    await import('../src/content');
+    await tick();
+    history.pushState({}, '', '/es-es/watch/EPISODE2/fixture');
+    await tick(1200);
+    expect(click).toHaveBeenCalledOnce();
+    expect(status().playerReady).toBe(false);
+    document.querySelector('video')!.dispatchEvent(new Event('loadstart'));
+    await tick(1200);
+    expect(click).toHaveBeenCalledTimes(2);
+    await tick(1200);
+    expect(click).toHaveBeenCalledTimes(2);
+  });
+
+  it('respects a manual recap click before automation can run', async () => {
+    intro().setAttribute('aria-hidden', 'true');
+    const click = vi.spyOn(intro(), 'click');
+    await import('../src/content');
+    await tick();
+    intro().setAttribute('aria-hidden', 'false');
+    trustedInput('pointerdown', intro());
+    await tick(1200);
+    expect(status().manualHold).toBe(true);
     expect(click).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 # Stream Comfort
 
-A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.4.0** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
+A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.4.1** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
 
 The popup defaults to **English**, with an **English / Español** language selector. This updates labels, status messages, errors, and platform settings. Your choice is saved on this device. The popup stability fix from 0.3.1 is retained; the user has confirmed the reported flickering stopped.
 
@@ -11,7 +11,7 @@ Choose your skip preferences from **any tab**, before opening a streaming episod
 | Option | Crunchyroll | HBO Max | Default |
 | --- | --- | --- | --- |
 | Skip intros | Native “Saltar intro” button | Native “Omitir intro” button | On |
-| Skip recaps | No recap control in the inspected player | Native “Omitir resumen” button | Preference on; available only on HBO |
+| Skip recaps | Native “Saltar resumen” button, when offered | Native “Omitir resumen” button | On |
 | Skip credits | Requires visible credits and Next episode controls | Uses the native next-episode offer during credits | Off |
 | Next episode | At the actual video end, if Next episode remains visible | At the actual video end, if the next-episode offer remains visible | Off |
 
@@ -27,7 +27,7 @@ Requires Chrome 120 or later.
 4. Pin **Stream Comfort** in Chrome’s extensions menu for easy access.
 5. Reload streaming pages that were already open before installation.
 
-If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.4.0**. Keep the extension installed to preserve its settings. The update preserves your language, global switch, and platform switches. Matching old action choices are kept. If an action was off on either platform, its new shared toggle starts off; this avoids expanding an old advancement opt-in to another platform. Missing old service settings use the previous safe defaults. You can choose the shared value yourself afterward.
+If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.4.1**. Keep the extension installed to preserve its settings. The update preserves your language, global switch, and platform switches. Matching old action choices are kept. If an action was off on either platform, its new shared toggle starts off; this avoids expanding an old advancement opt-in to another platform. Missing old service settings use the previous safe defaults. You can choose the shared value yourself afterward.
 
 Chrome loads the extracted `dist` directory, not the ZIP itself. Keep that directory in place.
 
@@ -35,7 +35,7 @@ Chrome loads the extracted `dist` directory, not the ZIP itself. Keep that direc
 
 Open the extension popup from any page and toggle what you want. No streaming tab or episode needs to be open to save preferences. Later, open [Crunchyroll](https://www.crunchyroll.com) or [HBO Max](https://play.hbomax.com) and sign in yourself if needed. The extension automatically uses your saved choices when a supported playback control appears. The popup does not need to stay open.
 
-All four preference switches remain configurable regardless of the current page or player capabilities. **Skip recaps** currently works only on HBO Max. The separate **This tab** section reports current playback status and explains unavailable actions without changing your shared preferences.
+All four preference switches remain configurable regardless of the current page or player capabilities. **Skip recaps** works on both services when the verified native recap control appears. The separate **This tab** section reports current playback status and explains unavailable actions without changing your shared preferences.
 
 **Enable extension** preserves your choices when turned off and on. **Platforms** enables each service independently; **Back** returns to your shared preferences. Neither switch turns on episode advancement. Automation requires the global, platform, and action switches to be enabled, without a tab pause or manual hold. Preference changes apply immediately to running players and are loaded by players opened later. No page reload is needed for ordinary preference changes; refreshing after an extension update replaces the old content script.
 
@@ -50,7 +50,7 @@ The service’s own autoplay is independent. Turning off **Next episode** here d
 ## Compatibility and privacy
 
 - Player evidence covers Crunchyroll in Spanish (Spain) and HBO Max in Spanish (Latin America), in the main document. Other player languages, iframes, and platforms are not advertised as verified. English popup text does not imply English player support.
-- Controls may be absent from some episodes. Crunchyroll says Skip Intro does not cover recaps; no recap control was observed in the inspected session. [Crunchyroll help](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature).
+- Controls may be absent from some episodes. A native Crunchyroll “Saltar resumen” control was observed and manually activated on September 8, 2026. The [Crunchyroll help article](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature) still says recaps are unavailable; support here follows the actual inspected player, not a claim of catalog-wide availability. See [fixture provenance](fixtures/README.md).
 - Advancement requires a visible, enabled control. Completion uses the actual media state, never proximity to the duration. Native autoplay may act first.
 - Only visible documents are automated. Ambiguous, hidden, and stale controls are rejected. Each advancement consumes one attempt and blocks further actions against that episode. The in-memory ledger retains at most 64 episodes; reloading the document starts a new ledger.
 - No ad skipping or changes to DRM, subscriptions, or regional restrictions. HBO’s generic promotional “Saltar” control is ignored.
@@ -71,6 +71,6 @@ This checks TypeScript, runs tests, and builds the loadable extension in `dist/`
 
 Shared types, settings, and episode identity live in `src/shared`; automation in `src/core`; service adapters in `src/services`; the worker and content script in `src`; and the popup and typed language catalogs in `src/popup`. New services require their own evidence and minimal permissions.
 
-Version 0.4.0 passes **249 tests across nine suites**. The compiled English/Spanish popup was checked in Chrome using a simulated API: preferences saved without a supported player were retained when opening both service previews, while platform switches stayed independent. Earlier sessions inspected real controls on both services and verified manual HBO next-episode navigation. The user confirmed the prior popup flicker fix. These checks do not certify every action in the installed extension: live end-to-end playback checks remain documented separately.
+Version 0.4.1 passes **267 tests across nine suites**. New tests cover Crunchyroll recap detection, independent preferences, duplicate prevention, reuse of the intro button, stale controls after episode navigation, manual holds, and popup availability. The native recap button was inspected and manually activated on the live service; the new extension automation is fixture-tested. The earlier compiled popup preview and user-confirmed flicker fix remain documented. Installed end-to-end playback checks are tracked separately.
 
 See the [verification report](docs/VERIFICATION.md), [acceptance criteria](docs/RELEASE.md), [manual checklist](docs/MANUAL-TESTS.md), [Chrome architecture](docs/CHROME-ARCHITECTURE.md), and [backlog](docs/BACKLOG.md). Historical verification notes are retained in Spanish.

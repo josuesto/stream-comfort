@@ -14,6 +14,16 @@ Estados reales observados:
 * Siguiente episodio: `button[data-testid="next-episode-button"]`, etiqueta `Siguiente episodio`. Está presente también durante el contenido normal. Los controles inferiores se ocultan con opacidad cero en un ancestro.
 * Reproducción automática del servicio: menú con switch `Reproducir siguiente`. La extensión no lo modifica.
 
-Recap no observado. No se incluye un selector ni un fixture que simule soporte de resumen. El estado `video.ended` se simula en pruebas; el comportamiento completo de extensión instalada al terminar queda en la lista manual.
+## Resumen: evidencia nueva del 8 de septiembre de 2026
+
+Se inspeccionó otro episodio con un resumen en el reproductor real de Crunchyroll, Chrome, interfaz `es` y ruta `es-es`. El botón nativo usa `aria-label="Saltar resumen"` y texto `Saltar resumen`, dentro de `[data-testid="player-controls-root"]` y `#player-container`. Reutiliza el SVG con `data-testid="skip-intro-icon"`.
+
+Se observaron ambos estados: visible con `aria-hidden="false"`, `tabindex="0"` y opacidad 1; oculto con el mismo texto, `aria-hidden="true"`, `tabindex="-1"` y opacidad 0. En esta sesión se ocultaba junto con los controles. Mostrar los controles mediante el teclado permitió activar el botón por su nombre accesible. El clic nativo movió la reproducción aproximadamente de 1:21 a 1:56 dentro del mismo episodio. Estos tiempos documentan el resultado manual y nunca se usan en la implementación.
+
+`player-recap-es.html` conserva la jerarquía relevante y el botón visible observado. Se omiten clases, rutas SVG, fuentes de vídeo, títulos, identificadores de contenido y datos de cuenta. Los rangos y estados multimedia de prueba son sintéticos.
+
+El [artículo oficial](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature), consultado el mismo día, aún decía que no había salto de resúmenes. La nueva evidencia directa justifica el soporte del control observado, sin extrapolarlo a otros idiomas, episodios o variantes. La falta de un botón de resumen en la inspección inicial del 7 de septiembre no demostraba que toda la plataforma careciera de él.
+
+El clic del control real se verificó manualmente, no con la nueva extensión instalada. La detección y automatización nuevas se prueban con fixtures. El estado `video.ended` sigue simulado; los finales naturales y la matriz completa instalada permanecen en la lista manual.
 
 Los fixtures de error, navegación, ambigüedad, vídeo pausado, ocultación y controles deshabilitados son variaciones sintéticas para probar guardas. No son capturas de otros servicios ni prueba de compatibilidad con otras variantes del reproductor.
