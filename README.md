@@ -1,10 +1,10 @@
 # Stream Comfort
 
-A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.3.3** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
+A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.4.0** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
 
 The popup defaults to **English**, with an **English / Español** language selector. This updates labels, status messages, errors, and platform settings. Your choice is saved on this device. The popup stability fix from 0.3.1 is retained; the user has confirmed the reported flickering stopped.
 
-Version 0.3.3 removes **Skip selected episodes** and its list editor. Older saved lists are ignored immediately and removed from local settings the next time the popup reads them or a preference is saved. The remaining skip choices and language are preserved.
+Choose your skip preferences from **any tab**, before opening a streaming episode. One shared set applies to every enabled platform. The popup says **Currently supports Crunchyroll and HBO Max**; its heading no longer changes with the current service.
 
 ## Available actions
 
@@ -27,19 +27,21 @@ Requires Chrome 120 or later.
 4. Pin **Stream Comfort** in Chrome’s extensions menu for easy access.
 5. Reload streaming pages that were already open before installation.
 
-If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.3.3**. Keep the extension installed to preserve its settings. Preferences without a saved language default to English; your existing language, platform switches, and action choices are preserved.
+If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.4.0**. Keep the extension installed to preserve its settings. The update preserves your language, global switch, and platform switches. Matching old action choices are kept. If an action was off on either platform, its new shared toggle starts off; this avoids expanding an old advancement opt-in to another platform. Missing old service settings use the previous safe defaults. You can choose the shared value yourself afterward.
 
 Chrome loads the extracted `dist` directory, not the ZIP itself. Keep that directory in place.
 
 ## Use
 
-Open an episode on [Crunchyroll](https://www.crunchyroll.com) or [HBO Max](https://play.hbomax.com), sign in yourself if needed, and open the popup. The heading identifies the current service. Each action has its own toggle; unavailable features have a disabled control and an explanation.
+Open the extension popup from any page and toggle what you want. No streaming tab or episode needs to be open to save preferences. Later, open [Crunchyroll](https://www.crunchyroll.com) or [HBO Max](https://play.hbomax.com) and sign in yourself if needed. The extension automatically uses your saved choices when a supported playback control appears. The popup does not need to stay open.
 
-**Enable extension** preserves your choices when turned off and on. **Platforms** enables each service independently; **Back** returns to the current service’s controls. Neither switch turns on episode advancement. Automation requires the global, platform, and action switches to be enabled, without a tab pause or manual hold. Preference changes apply immediately.
+All four preference switches remain configurable regardless of the current page or player capabilities. **Skip recaps** currently works only on HBO Max. The separate **This tab** section reports current playback status and explains unavailable actions without changing your shared preferences.
+
+**Enable extension** preserves your choices when turned off and on. **Platforms** enables each service independently; **Back** returns to your shared preferences. Neither switch turns on episode advancement. Automation requires the global, platform, and action switches to be enabled, without a tab pause or manual hold. Preference changes apply immediately to running players and are loaded by players opened later. No page reload is needed for ordinary preference changes; refreshing after an extension update replaces the old content script.
 
 Use **Language** near the bottom of any popup panel to choose **English** or **Español**. You may need to scroll inside the popup. The setting persists when you reopen it or restart Chrome, and also works on unsupported pages. It changes only the extension’s interface, not the streaming player’s language or its verified locales.
 
-**Pause for this tab** suspends automation until you resume, close the tab, or restart Chrome. This explicit pause persists across navigation and streaming-page reloads. Chrome clears temporary pauses when the extension itself reloads or updates. A manual pause, seek, skip, or HBO countdown cancellation also holds automation for that episode. Click **Resume for this tab** to continue; a new episode releases a manual hold. Volume changes and entering fullscreen do not by themselves hold automation.
+**Pause for this tab** is available when the current tab has a supported player. It suspends automation until you resume, close the tab, or restart Chrome. This explicit pause persists across navigation and streaming-page reloads. Chrome clears temporary pauses when the extension itself reloads or updates. A manual pause, seek, skip, or HBO countdown cancellation also holds automation for that episode. Click **Resume for this tab** to continue; a new episode releases a manual hold. Volume changes and entering fullscreen do not by themselves hold automation.
 
 **Last action** identifies the last control the extension attempted in this document session. It is not saved viewing history or confirmation that navigation completed.
 
@@ -69,6 +71,6 @@ This checks TypeScript, runs tests, and builds the loadable extension in `dist/`
 
 Shared types, settings, and episode identity live in `src/shared`; automation in `src/core`; service adapters in `src/services`; the worker and content script in `src`; and the popup and typed language catalogs in `src/popup`. New services require their own evidence and minimal permissions.
 
-Version 0.3.3 passes **253 tests across nine suites**. The simplified compiled English/Spanish popup was checked in Chrome using a simulated Chrome API. Earlier sessions inspected real controls on both services and verified manual HBO next-episode navigation. The user confirmed the prior popup flicker fix. These checks do not certify every action in the installed extension: live end-to-end playback checks remain documented separately.
+Version 0.4.0 passes **249 tests across nine suites**. The compiled English/Spanish popup was checked in Chrome using a simulated API: preferences saved without a supported player were retained when opening both service previews, while platform switches stayed independent. Earlier sessions inspected real controls on both services and verified manual HBO next-episode navigation. The user confirmed the prior popup flicker fix. These checks do not certify every action in the installed extension: live end-to-end playback checks remain documented separately.
 
 See the [verification report](docs/VERIFICATION.md), [acceptance criteria](docs/RELEASE.md), [manual checklist](docs/MANUAL-TESTS.md), [Chrome architecture](docs/CHROME-ARCHITECTURE.md), and [backlog](docs/BACKLOG.md). Historical verification notes are retained in Spanish.

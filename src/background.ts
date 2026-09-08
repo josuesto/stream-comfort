@@ -1,5 +1,5 @@
 import { ACTIONS, isServiceId, isUiLanguage, type Action } from './shared/types';
-import { SETTINGS_KEY, normalizeSettings, hasRetiredEpisodeSettings, updatePlatform, updateSetting, updateLanguage } from './shared/settings';
+import { SETTINGS_KEY, normalizeSettings, needsSettingsMigration, updatePlatform, updateSetting, updateLanguage } from './shared/settings';
 
 type Response =
   | { ok: true; settings: ReturnType<typeof normalizeSettings> }
@@ -54,7 +54,7 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
       return serial(async () => {
         const data = await chrome.storage.local.get(SETTINGS_KEY);
         const settings = normalizeSettings(data[SETTINGS_KEY]);
-        if (hasRetiredEpisodeSettings(data[SETTINGS_KEY])) {
+        if (needsSettingsMigration(data[SETTINGS_KEY])) {
           await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
         }
         return { ok: true, settings };
@@ -73,13 +73,13 @@ async function handle(message: Record<string, unknown>, sender: chrome.runtime.M
     }
     case 'SET_SETTING': {
       if (!popup) return denied();
-      const { key, value, service } = message;
+      const { key, value } = message;
       if (typeof value !== 'boolean' || (key !== 'enabled' && !ACTIONS.includes(key as Action))) return invalid();
-      if (key !== 'enabled' && !isServiceId(service)) return invalid();
+      // A stale per-service popup must not silently change the new global choices.
+      if (Object.prototype.hasOwnProperty.call(message, 'service')) return invalid();
       return serial(async () => {
         const data = await chrome.storage.local.get(SETTINGS_KEY);
-        const settings = updateSetting(normalizeSettings(data[SETTINGS_KEY]), key as 'enabled' | Action, value,
-          isServiceId(service) ? service : undefined);
+        const settings = updateSetting(normalizeSettings(data[SETTINGS_KEY]), key as 'enabled' | Action, value);
         await chrome.storage.local.set({ [SETTINGS_KEY]: settings });
         return { ok: true, settings };
       });

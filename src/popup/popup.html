@@ -13,10 +13,11 @@
         <div class="wordmark"><span class="brand-mark" aria-hidden="true">››</span><h1>Stream Comfort</h1></div>
         <button class="platforms-button" id="platforms-button" type="button" aria-controls="platforms-panel" aria-expanded="false">Platforms</button>
       </header>
+      <p class="support-note" data-i18n="supportedPlatforms">Currently supports Crunchyroll and HBO Max.</p>
 
       <section id="platforms-panel" aria-labelledby="platforms-heading" hidden>
         <h2 id="platforms-heading" data-i18n="platformsHeading">Your platforms</h2>
-        <p class="page-detail" data-i18n="platformsDetail">Choose where to automate playback controls. Turning a platform off keeps its skip preferences.</p>
+        <p class="page-detail" data-i18n="platformsDetail">Choose where to automate playback controls. Your skip preferences apply to every enabled platform.</p>
         <div class="actions">
           <label class="toggle-row" for="platform-crunchyroll">
             <span><span class="row-title" id="platform-crunchyroll-label">Crunchyroll</span></span>
@@ -27,7 +28,7 @@
             <input id="platform-hbomax" type="checkbox" role="switch" aria-labelledby="platform-hbomax-label" disabled>
           </label>
         </div>
-        <p class="tab-note" data-i18n="platformsNote">Skip options apply to the platform open in this tab.</p>
+        <p class="tab-note" data-i18n="platformsNote">Choose your skip preferences once. They apply whenever you watch on an enabled platform.</p>
       </section>
 
       <div id="playback-settings">
@@ -37,13 +38,7 @@
       </label>
 
       <section class="service-section" aria-labelledby="service-heading">
-        <div class="section-heading"><h2 id="service-heading">This tab</h2><span class="version">0.3.3</span></div>
-        <div class="page-state" id="page-state" data-state="loading">
-          <span class="state-dot" aria-hidden="true"></span>
-          <p id="status" role="status">Checking this tab…</p>
-        </div>
-        <p class="page-detail" id="status-detail">Skips use the player’s own controls.</p>
-        <p class="tab-note" id="last-action" hidden></p>
+        <div class="section-heading"><h2 id="service-heading" data-i18n="settingsHeading">Playback preferences</h2><span class="version">0.4.0</span></div>
 
         <div class="actions">
           <label class="toggle-row" for="intro">
@@ -51,7 +46,7 @@
             <input id="intro" type="checkbox" role="switch" aria-labelledby="intro-label" aria-describedby="intro-detail" disabled>
           </label>
           <label class="toggle-row" for="recap">
-            <span><span class="row-title" id="recap-label" data-i18n="recapLabel">Skip recaps</span><span class="row-detail" id="recap-detail">Activates the player’s Skip recap button.</span></span>
+            <span><span class="row-title" id="recap-label" data-i18n="recapLabel">Skip recaps</span><span class="row-detail" id="recap-detail">Uses the player’s recap button. Currently available on HBO Max.</span></span>
             <input id="recap" type="checkbox" role="switch" aria-labelledby="recap-label" aria-describedby="recap-detail" disabled>
           </label>
           <label class="toggle-row" for="credits">
@@ -65,10 +60,19 @@
         </div>
       </section>
 
-      <section class="tab-section" id="tab-controls" aria-label="Controls for this tab">
+      <section class="tab-section" id="tab-controls" aria-labelledby="tab-heading">
+        <h2 id="tab-heading" data-i18n="thisTab">This tab</h2>
+        <div class="page-state" id="page-state" data-state="loading">
+          <span class="state-dot" aria-hidden="true"></span>
+          <p id="status" role="status">Checking this tab…</p>
+        </div>
+        <p class="page-detail" id="status-detail">Skips use the player’s own controls.</p>
+        <p class="tab-note" id="last-action" hidden></p>
+
+        <p id="tab-limitations" class="tab-note" hidden></p>
         <p class="manual-hold" id="manual-hold" hidden data-i18n="manualHold">A manual pause or seek was detected. Resume here when you want to automate this episode.</p>
         <button id="tab-pause" type="button" disabled>Pause for this tab</button>
-        <p class="tab-note" id="tab-note">Paused until you resume or close this tab.</p>
+        <p class="tab-note" id="tab-note">Pauses last until you resume or close this tab.</p>
       </section>
       </div>
 

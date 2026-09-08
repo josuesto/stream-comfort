@@ -9,4 +9,6 @@ The goal is broader streaming-service coverage through dependable integrations. 
 | 3 | Crunchyroll recaps if a native control becomes available | An actual observed recap control |
 | 4 | Additional streaming platforms | Test access, real playback controls, minimal permissions, one dependable integration at a time |
 
+Shared playback preferences configurable from any tab are implemented in 0.4.0.
+
 The selected-episode list was removed in 0.3.3 at the user's request and is no longer planned. Estimated timestamps, automated filler classification, ad/DRM changes, and remote viewing-data sync remain out of scope.

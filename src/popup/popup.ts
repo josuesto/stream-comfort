@@ -15,14 +15,11 @@ function isObject(value: unknown): value is Record<string, unknown> {
 function isSettingsResponse(value: unknown): value is SettingsResponse {
   if (!isObject(value) || value.ok !== true || !isObject(value.settings)) return false;
   const settings = value.settings;
-  if (settings.version !== 1 || !isUiLanguage(settings.language) || typeof settings.enabled !== 'boolean' || !isObject(settings.services) || !isObject(settings.platforms)) return false;
-  const services = settings.services;
+  if (settings.version !== 2 || !isUiLanguage(settings.language) || typeof settings.enabled !== 'boolean' || !isObject(settings.actions) || !isObject(settings.platforms)) return false;
+  const actions = settings.actions;
   const platforms = settings.platforms;
-  return SERVICES.every(service => {
-    const actions = services[service];
-    return typeof platforms[service] === 'boolean'
-      && isObject(actions) && ACTIONS.every(action => typeof actions[action] === 'boolean');
-  });
+  return SERVICES.every(service => typeof platforms[service] === 'boolean')
+    && ACTIONS.every(action => typeof actions[action] === 'boolean');
 }
 
 function isTabStatus(value: unknown): value is TabStatus {
@@ -67,7 +64,7 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   let status: TabStatus | null = null;
   let tabId: number | null = null;
   let statusLoaded = false;
-  let saving: { key: SettingKey; value: boolean; service?: ServiceId } | null = null;
+  let saving: { key: SettingKey; value: boolean } | null = null;
   let platformSaving: { service: ServiceId; enabled: boolean } | null = null;
   let platformsOpen = false;
   let pauseSaving = false;
@@ -96,7 +93,6 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
       for (const node of doc.querySelectorAll<HTMLElement>('[data-i18n]')) {
         node.textContent = t(node.dataset.i18n as MessageKey);
       }
-      element('tab-controls').setAttribute('aria-label', t('tabControls'));
       renderedLanguage = locale;
       renderError();
     }
@@ -112,20 +108,23 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
       platformSwitches[platform].checked = platformSaving?.service === platform ? platformSaving.enabled : settings?.platforms[platform] ?? false;
       platformSwitches[platform].disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
     }
-    const service = status?.service;
-    element('service-heading').textContent = service ? serviceNames[service] : t('thisTab');
-    element('autoplay-note').textContent = t('autoplayNote', { service: service ? serviceNames[service] : t('eachPlatform') });
+    element('autoplay-note').textContent = t('autoplayNote', { service: t('eachPlatform') });
     for (const action of ACTIONS) {
-      const capability = status?.pageSupported ? status.capabilities[action] : undefined;
-      switches[action].checked = !capability?.supported || !service ? false
-        : saving?.key === action && saving.service === service ? saving.value : settings?.services[service][action] ?? false;
-      switches[action].disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null || !capability?.supported;
-      element(`${action}-detail`).textContent = capability
-        ? capability.supported
-          ? action === 'intro' && service === 'hbomax' ? t('hboIntroDetail') : t(`${action}Detail`)
-          : capability.reason ? t(capability.reason) : locale === 'es' ? capability.detail : t('featureUnavailable')
-        : t('unavailable');
+      switches[action].checked = saving?.key === action ? saving.value : settings?.actions[action] ?? false;
+      switches[action].disabled = !settings || saving !== null || platformSaving !== null || languageSaving !== null;
+      element(`${action}-detail`).textContent = t(`${action}Detail`);
     }
+    // Live limitations explain this tab only; they never prevent configuring
+    // preferences that will apply when a supported player is opened later.
+    const limitations = status?.pageSupported && settings ? ACTIONS
+      .filter(action => settings!.actions[action] && !status!.capabilities[action].supported)
+      .map(action => {
+        const capability = status!.capabilities[action];
+        const detail = capability.reason ? t(capability.reason) : t('featureUnavailable');
+        return `${t(`${action}Label`)}: ${detail}`;
+      }).join(' ') : '';
+    element('tab-limitations').textContent = limitations;
+    element('tab-limitations').hidden = !limitations;
     const lastAction = status?.lastAction;
     element('last-action').hidden = !lastAction;
     element('last-action').textContent = lastAction ? t('lastAction', { action: t(`${lastAction}Name`) }) : '';
@@ -168,9 +167,8 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
     pauseButton.disabled = !status?.pageSupported || tabId === null || pauseSaving;
     pauseButton.textContent = pauseSaving ? t('saving')
       : status?.paused || status?.manualHold ? t('resumeTab') : t('pauseTab');
-    element('tab-note').textContent = status?.paused || status?.manualHold
-      ? t('resumeNote')
-      : t('pauseNote');
+    element('tab-note').textContent = !status?.pageSupported ? t('tabPauseUnavailable')
+      : status.paused || status.manualHold ? t('resumeNote') : t('pauseNote');
   }
 
   async function loadSettings() {
@@ -210,18 +208,15 @@ export async function mountPopup(doc: Document, api: PopupChrome) {
   }
 
   async function saveSetting(key: SettingKey, value: boolean) {
-    const service = status?.service;
-    if (saving || platformSaving || languageSaving || !settings || (key !== 'enabled' && (!service || !status?.pageSupported || !status.capabilities[key].supported))) {
+    if (saving || platformSaving || languageSaving || !settings) {
       render();
       return;
     }
-    saving = key === 'enabled' ? { key, value } : { key, value, service };
+    saving = { key, value };
     setError(null);
     render();
     try {
-      const response = await send(key === 'enabled'
-        ? { type: 'SET_SETTING', key, value }
-        : { type: 'SET_SETTING', key, value, service });
+      const response = await send({ type: 'SET_SETTING', key, value });
       if (!isSettingsResponse(response)) throw new Error('Save failed');
       if (!disposed) settings = response.settings;
     } catch {

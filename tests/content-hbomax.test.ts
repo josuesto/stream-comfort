@@ -125,8 +125,8 @@ describe('HBO advancement wiring', () => {
     await tick();
     expect(click).not.toHaveBeenCalled();
     const settings = defaultSettings();
-    settings.services.hbomax.credits = true;
-    settings.services.hbomax.nextEpisode = true;
+    settings.actions.credits = true;
+    settings.actions.nextEpisode = true;
     changeSettings(settings); await tick();
     expect(click).toHaveBeenCalledOnce();
     media({ended:true,paused:true});
@@ -138,7 +138,7 @@ describe('HBO advancement wiring', () => {
   it('waits for video.ended when only end-of-video advancement is enabled', async () => {
     const click = vi.spyOn(mountNext(),'click');
     const settings = defaultSettings();
-    settings.services.hbomax.nextEpisode = true;
+    settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
     await import('../src/content'); await tick();
     expect(click).not.toHaveBeenCalled();
@@ -152,7 +152,7 @@ describe('HBO advancement wiring', () => {
     const next = mountNext();
     const click = vi.spyOn(next,'click');
     const settings = defaultSettings();
-    settings.services.hbomax.nextEpisode = true;
+    settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
     await import('../src/content'); await tick();
     const video = document.querySelector('video')!;
@@ -170,7 +170,7 @@ describe('HBO advancement wiring', () => {
   it('never treats an ended event alone, or one from another video, as permission to advance', async () => {
     const click = vi.spyOn(mountNext(),'click');
     const settings = defaultSettings();
-    settings.services.hbomax.nextEpisode = true;
+    settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
     await import('../src/content'); await tick();
     document.querySelector('video')!.dispatchEvent(new Event('ended'));
@@ -186,7 +186,7 @@ describe('HBO advancement wiring', () => {
     const click = vi.spyOn(mountNext(),'click');
     await import('../src/content'); await tick();
     const settings = defaultSettings();
-    settings.services.hbomax.credits = true;
+    settings.actions.credits = true;
     changeSettings(settings);
     trustedInput('pointerdown',control('player-ux-up-next-dismiss'));
     await tick();
@@ -219,10 +219,10 @@ describe('HBO content bootstrap and preferences', () => {
     expect(status().manualHold).toBe(false);
   });
 
-  it('uses HBO action preferences independently from Crunchyroll', async () => {
+  it('loads shared choices set before playback and applies later edits without a reload', async () => {
     const settings = defaultSettings();
-    settings.services.hbomax.intro = false;
-    settings.services.crunchyroll.recap = false;
+    settings.actions.intro = false;
+    settings.actions.recap = false;
     storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
     const click = vi.spyOn(skip(), 'click');
     await import('../src/content');
@@ -230,8 +230,12 @@ describe('HBO content bootstrap and preferences', () => {
     expect(click).not.toHaveBeenCalled();
     showSkip('Omitir resumen');
     await tick();
+    expect(click).not.toHaveBeenCalled();
+    settings.actions.recap = true;
+    changeSettings(settings);
+    await tick();
     expect(click).toHaveBeenCalledOnce();
-    settings.services.hbomax.intro = true;
+    settings.actions.intro = true;
     settings.platforms.crunchyroll = false;
     changeSettings(settings);
     showSkip('Omitir intro');
@@ -277,8 +281,8 @@ describe('HBO content bootstrap and preferences', () => {
   it('ignores a promotional Saltar control while offering advancement settings', async () => {
     showSkip('Saltar');
     const settings = defaultSettings();
-    settings.services.hbomax.credits = true;
-    settings.services.hbomax.nextEpisode = true;
+    settings.actions.credits = true;
+    settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
     const click = vi.spyOn(skip(), 'click');
     await import('../src/content');

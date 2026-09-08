@@ -145,7 +145,7 @@ describe('content bootstrap and local preferences', () => {
 
   it('applies a local settings change before any pending action', async () => {
     const settings = defaultSettings();
-    settings.services.crunchyroll.intro = false;
+    settings.actions.intro = false;
     storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
     const click = vi.spyOn(intro(), 'click');
     await import('../src/content');
@@ -185,6 +185,24 @@ describe('content bootstrap and local preferences', () => {
 });
 
 describe('content navigation and manual input wiring', () => {
+  it('uses saved shared preferences when an episode is opened later from a browse page', async () => {
+    history.replaceState({}, '', '/es-es');
+    const settings = defaultSettings();
+    settings.actions.intro = false;
+    storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
+    const click = vi.spyOn(intro(), 'click');
+    await import('../src/content');
+    await tick();
+    history.pushState({}, '', '/es-es/watch/EPISODE1/fixture');
+    document.querySelector('video')!.dispatchEvent(new Event('loadedmetadata'));
+    await tick(1200);
+    expect(click).not.toHaveBeenCalled();
+    settings.actions.intro = true;
+    storageChanges.forEach(listener => listener({ [SETTINGS_KEY]: { newValue: settings } }, 'local'));
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
   it('handles an SPA episode change and media load on the existing player', async () => {
     const click = vi.spyOn(intro(), 'click');
     await import('../src/content');

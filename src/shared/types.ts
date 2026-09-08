@@ -12,11 +12,11 @@ export function isUiLanguage(value: unknown): value is UiLanguage {
   return value === 'en' || value === 'es';
 }
 export interface Settings {
-  version: 1;
+  version: 2;
   language: UiLanguage;
   enabled: boolean;
   platforms: Record<ServiceId, boolean>;
-  services: Record<ServiceId, ActionSettings>;
+  actions: ActionSettings;
 }
 export const CAPABILITY_REASONS = ['crRecapUnavailable', 'spanishPlayerRequired'] as const;
 export type CapabilityReason = typeof CAPABILITY_REASONS[number];
@@ -46,7 +46,7 @@ export interface TabStatus {
 export type Request =
   | { type: 'GET_SETTINGS' }
   | { type: 'SET_LANGUAGE'; language: UiLanguage }
-  | { type: 'SET_SETTING'; key: 'enabled' | Action; value: boolean; service?: ServiceId }
+  | { type: 'SET_SETTING'; key: 'enabled' | Action; value: boolean }
   | { type: 'SET_PLATFORM'; service: ServiceId; enabled: boolean }
   | { type: 'GET_TAB_PAUSE' }
   | { type: 'SET_TAB_PAUSE'; tabId: number; paused: boolean }

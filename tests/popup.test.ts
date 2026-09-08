@@ -9,14 +9,11 @@ import { ACTIONS, type Request, type ServiceId, type Settings, type TabStatus } 
 
 const html = readFileSync(resolve('src/popup/popup.html'), 'utf8');
 const originalSettings = (): Settings => ({
-  version: 1,
+  version: 2,
   language: 'es',
   enabled: true,
   platforms: { crunchyroll: true, hbomax: true },
-  services: {
-    crunchyroll: { intro: true, recap: false, credits: false, nextEpisode: false },
-    hbomax: { intro: true, recap: false, credits: false, nextEpisode: false },
-  },
+  actions: { intro: true, recap: false, credits: false, nextEpisode: false },
 });
 const originalStatus = (service: ServiceId = 'crunchyroll'): TabStatus => ({
   service, pageSupported: true, playerReady: true, paused: false,
@@ -37,8 +34,7 @@ function fixture() {
     if (request.type === 'GET_SETTINGS') return { ok: true, settings: structuredClone(settings) };
     if (request.type === 'SET_SETTING') {
       if (request.key === 'enabled') settings.enabled = request.value;
-      else if (request.service) settings.services[request.service][request.key] = request.value;
-      else return { ok: false };
+      else settings.actions[request.key] = request.value;
       return { ok: true, settings: structuredClone(settings) };
     }
     if (request.type === 'SET_LANGUAGE') {
@@ -147,7 +143,7 @@ describe('popup controls', () => {
     expect(input('language').value).toBe('en');
     expect(document.getElementById('intro-label')?.textContent).toBe('Skip intros');
     expect(document.getElementById('status')?.textContent).toBe('Ready in this tab');
-    expect(document.getElementById('tab-controls')?.getAttribute('aria-label')).toBe('Controls for this tab');
+    expect(document.getElementById('tab-heading')?.textContent).toBe('This tab');
     document.getElementById('platforms-button')!.click();
     expect(document.getElementById('platforms-heading')?.textContent).toBe('Your platforms');
     expect(document.getElementById('platforms-button')?.textContent).toBe('Back');
@@ -194,15 +190,21 @@ describe('popup controls', () => {
     expect(f.settings()).toEqual({ ...previous, language: 'en' });
   });
 
-  it('lets unsupported pages change language and keeps their actions disabled', async () => {
+  it('lets an unrelated page change all shared preferences and language', async () => {
     const f = fixture();
     f.setStatus(null);
     await start(f);
     await changeLanguage('en');
-    expect(document.getElementById('status')?.textContent).toBe('This page is not supported');
-    expect(document.getElementById('intro-detail')?.textContent).toContain('Open a supported episode');
-    expect(input('language').disabled).toBe(false);
-    for (const action of ACTIONS) expect(input(action).disabled).toBe(true);
+    expect(document.getElementById('status')?.textContent).toBe('No supported player in this tab');
+    expect(document.getElementById('tab-note')?.textContent).toBe('Tab pause is available when a supported player is open.');
+    expect(document.getElementById('service-heading')?.textContent).toBe('Playback preferences');
+    expect(document.querySelector('.support-note')?.textContent).toBe('Currently supports Crunchyroll and HBO Max.');
+    for (const action of ACTIONS) {
+      expect(input(action).disabled).toBe(false);
+      await change(action, true);
+      expect(f.settings().actions[action]).toBe(true);
+    }
+    expect((document.getElementById('tab-pause') as HTMLButtonElement).disabled).toBe(true);
   });
 
   it('blocks conflicting edits until a pending language save settles', async () => {
@@ -231,19 +233,19 @@ describe('popup controls', () => {
     expect(document.getElementById('error-panel')?.hidden).toBe(false);
   });
 
-  it('localizes capability reasons and last actions without enabling unsupported player locales', async () => {
+  it('explains tab limitations without disabling the shared choices', async () => {
     const f = fixture();
     const status = originalStatus('hbomax');
     status.lastAction = 'recap';
     status.capabilities.intro = { supported: false, detail: 'Solo español.', reason: 'spanishPlayerRequired' };
-    status.capabilities.recap = { supported: false, detail: 'Sin resumen.', reason: 'crRecapUnavailable' };
     f.setStatus(status);
     await start(f);
     await changeLanguage('en');
-    expect(document.getElementById('intro-detail')?.textContent).toContain('player set to Spanish');
-    expect(document.getElementById('recap-detail')?.textContent).toContain('Crunchyroll has no recap control');
+    expect(document.getElementById('tab-limitations')?.textContent).toContain('player set to Spanish');
     expect(document.getElementById('last-action')?.textContent).toBe('Last action: recap.');
-    expect(input('intro').disabled).toBe(true);
+    expect(input('intro').disabled).toBe(false);
+    await change('intro', false);
+    expect(document.getElementById('tab-limitations')?.hidden).toBe(true);
   });
 
   it('keeps both catalogs complete with matching interpolation parameters', () => {
@@ -280,88 +282,72 @@ describe('popup controls', () => {
     await change('intro', false);
     await change('enabled', false);
     await change('enabled', true);
-    expect(f.settings().services.crunchyroll).toEqual({ intro: false, recap: false, credits: false, nextEpisode: true });
+    expect(f.settings().actions).toEqual({ intro: false, recap: false, credits: false, nextEpisode: true });
     expect(input('intro').checked).toBe(false);
     expect(input('nextEpisode').checked).toBe(true);
     expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'enabled', value: true });
-    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'intro', value: false, service: 'crunchyroll' });
+    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'intro', value: false });
   });
 
-  it('shows and writes HBO Max preferences without changing Crunchyroll', async () => {
+  it('uses the same settings on HBO and Crunchyroll without service-specific writes', async () => {
     const f = fixture();
-    const preferences = originalSettings();
-    preferences.services.hbomax.intro = false;
-    f.setSettings(preferences);
     f.setStatus(originalStatus('hbomax'));
     await start(f);
-    expect(document.getElementById('service-heading')?.textContent).toBe('HBO Max');
-    expect(document.getElementById('autoplay-note')?.textContent).toContain('HBO Max');
-    expect(document.getElementById('intro-detail')?.textContent).toContain('«Omitir intro»');
-    expect(input('intro').checked).toBe(false);
-    expect(input('nextEpisode').checked).toBe(false);
+    expect(document.getElementById('service-heading')?.textContent).toBe('Preferencias de reproducción');
+    await change('intro', false);
     await change('nextEpisode', true);
-    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'nextEpisode', value: true, service: 'hbomax' });
-    expect(f.settings().services.hbomax.nextEpisode).toBe(true);
-    expect(f.settings().services.crunchyroll).toEqual(originalSettings().services.crunchyroll);
-  });
-
-  it('uses the current service capability handshake for every action', async () => {
-    const f = fixture();
-    const status = originalStatus('hbomax');
-    status.capabilities.recap = { supported: true, detail: 'Control de resumen verificado.' };
-    status.capabilities.credits = { supported: true, detail: 'Control de créditos verificado.' };
-    status.capabilities.nextEpisode = { supported: false, detail: 'El control no confirma el siguiente episodio.' };
-    f.setStatus(status);
-    await start(f);
-    expect(input('recap').disabled).toBe(false);
-    expect(input('credits').disabled).toBe(false);
-    expect(input('nextEpisode').disabled).toBe(true);
-    expect(document.getElementById('nextEpisode-detail')?.textContent).toContain('no confirma');
-    await change('recap', true);
-    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'recap', value: true, service: 'hbomax' });
-    await change('nextEpisode', true);
-    expect(input('nextEpisode').checked).toBe(false);
-    expect(f.settings().services.hbomax.nextEpisode).toBe(false);
-  });
-
-  it('changes displayed service preferences after navigation', async () => {
-    const f = fixture();
-    const preferences = originalSettings();
-    preferences.services.hbomax.intro = false;
-    preferences.services.hbomax.nextEpisode = true;
-    f.setSettings(preferences);
-    const { controller } = await start(f);
-    expect(input('intro').checked).toBe(true);
-    f.setStatus(originalStatus('hbomax'));
-    await controller.refreshStatus();
-    expect(document.getElementById('service-heading')?.textContent).toBe('HBO Max');
+    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'nextEpisode', value: true });
+    f.setStatus(originalStatus('crunchyroll'));
+    await vi.advanceTimersByTimeAsync(1000);
     expect(input('intro').checked).toBe(false);
     expect(input('nextEpisode').checked).toBe(true);
-    f.setStatus(originalStatus());
-    await controller.refreshStatus();
-    expect(document.getElementById('service-heading')?.textContent).toBe('Crunchyroll');
-    expect(document.getElementById('intro-detail')?.textContent).toContain('«Saltar intro»');
-    expect(input('intro').checked).toBe(true);
-    expect(input('nextEpisode').checked).toBe(false);
   });
 
-  it('keeps a pending action save attached to its original service after navigation', async () => {
+  it('keeps an unsupported action editable and explains its availability', async () => {
+    const f = await start();
+    await change('recap', true);
+    expect(input('recap').checked).toBe(true);
+    expect(input('recap').disabled).toBe(false);
+    expect(document.getElementById('recap-detail')?.textContent).toContain('HBO Max');
+    expect(document.getElementById('tab-limitations')?.hidden).toBe(false);
+    expect(f.settings().actions.recap).toBe(true);
+  });
+
+  it('preserves choices through unrelated pages, episode changes, and reopening', async () => {
+    const f = fixture();
+    f.setStatus(null);
+    const { controller } = await start(f);
+    await change('intro', false);
+    await change('credits', true);
+    for (const status of [originalStatus('crunchyroll'), originalStatus('hbomax'), null]) {
+      f.setStatus(status);
+      await controller.refreshStatus();
+      expect(input('intro').checked).toBe(false);
+      expect(input('credits').checked).toBe(true);
+      expect(input('credits').disabled).toBe(false);
+    }
+    controller.dispose();
+    await start(f);
+    expect(input('credits').checked).toBe(true);
+    expect(input('intro').checked).toBe(false);
+  });
+
+  it('keeps a pending shared save stable when the current tab changes', async () => {
     const f = await start();
     let finishSave!: (response: Awaited<ReturnType<typeof f.sendMessage>>) => void;
     f.sendMessage.mockImplementationOnce(() => new Promise(resolve => { finishSave = resolve; }));
     await change('intro', false);
-    expect(input('intro').checked).toBe(false);
     f.setStatus(originalStatus('hbomax'));
     await f.controller.refreshStatus();
-    expect(input('intro').checked).toBe(true);
+    expect(input('intro').checked).toBe(false);
     expect(input('intro').disabled).toBe(true);
-    const responseSettings = originalSettings();
-    responseSettings.services.crunchyroll.intro = false;
-    finishSave({ ok: true, settings: responseSettings });
+    const settings = originalSettings();
+    settings.actions.intro = false;
+    finishSave({ ok: true, settings });
     await settle();
-    expect(input('intro').checked).toBe(true);
+    expect(input('intro').checked).toBe(false);
     expect(input('intro').disabled).toBe(false);
-    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'intro', value: false, service: 'crunchyroll' });
+    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'intro', value: false });
   });
 
   it('opens a simple platform panel and preserves independent platform and action choices', async () => {
@@ -380,7 +366,7 @@ describe('popup controls', () => {
     await change('platform-hbomax', false);
     expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_PLATFORM', service: 'hbomax', enabled: false });
     expect(f.settings().platforms).toEqual({ crunchyroll: true, hbomax: false });
-    expect(f.settings().services).toEqual(originalSettings().services);
+    expect(f.settings().actions).toEqual(originalSettings().actions);
     button.click();
     expect(button.textContent).toBe('Plataformas');
     expect(document.getElementById('playback-settings')?.hidden).toBe(false);
@@ -396,7 +382,7 @@ describe('popup controls', () => {
     await change('platform-hbomax', true);
     button.click();
     expect(document.getElementById('status')?.textContent).toBe('Lista en esta pestaña');
-    expect(f.settings().services).toEqual(originalSettings().services);
+    expect(f.settings().actions).toEqual(originalSettings().actions);
   });
 
   it('rolls back a failed platform save and permits a retry', async () => {
@@ -431,20 +417,17 @@ describe('popup controls', () => {
     const f = fixture();
     f.tabMessage.mockResolvedValueOnce(invalidStatus as unknown as TabStatus);
     await start(f);
-    expect(document.getElementById('service-heading')?.textContent).toBe('Esta pestaña');
-    expect(document.getElementById('status')?.textContent).toContain('no es compatible');
-    for (const action of ACTIONS) {
-      expect(input(action).disabled).toBe(true);
-      expect(input(action).checked).toBe(false);
-    }
-    await change('intro', true);
-    expect(f.sendMessage).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'SET_SETTING' }));
-    expect(input('intro').checked).toBe(false);
+    expect(document.getElementById('service-heading')?.textContent).toBe('Preferencias de reproducción');
+    expect(document.getElementById('status')?.textContent).toContain('No hay un reproductor compatible');
+    for (const action of ACTIONS) expect(input(action).disabled).toBe(false);
+    expect((document.getElementById('tab-pause') as HTMLButtonElement).disabled).toBe(true);
+    await change('intro', false);
+    expect(f.sendMessage).toHaveBeenCalledWith({ type: 'SET_SETTING', key: 'intro', value: false });
   });
 
   it.each([
-    ['missing HBO Max settings', { ...originalSettings(), services: { crunchyroll: originalSettings().services.crunchyroll } }],
-    ['malformed HBO Max settings', { ...originalSettings(), services: { ...originalSettings().services, hbomax: { ...originalSettings().services.hbomax, intro: 'true' } } }],
+    ['missing actions', { ...originalSettings(), actions: undefined }],
+    ['malformed actions', { ...originalSettings(), actions: { ...originalSettings().actions, intro: 'true' } }],
     ['malformed platform switch', { ...originalSettings(), platforms: { crunchyroll: true, hbomax: 'true' } }],
   ])('disables saving when the settings response has %s', async (_name, invalidSettings) => {
     const f = fixture();
@@ -456,31 +439,24 @@ describe('popup controls', () => {
     expect(document.getElementById('error-panel')?.hidden).toBe(false);
   });
 
-  it('explains unsupported features and keeps the episode skip list distinct', async () => {
-    await start();
-    expect(input('intro').disabled).toBe(false);
-    expect(input('recap').disabled).toBe(true);
-    expect(input('credits').disabled).toBe(true);
-    expect(document.getElementById('recap-detail')?.textContent).toContain('No se ha verificado');
-    expect(document.getElementById('credits-detail')?.textContent).toContain('señal fiable');
-    expect(input('recap').checked).toBe(false);
-    expect(input('nextEpisode').disabled).toBe(false);
+  it('allows choosing actions while every platform is off', async () => {
+    const f = fixture();
+    f.setSettings({ ...originalSettings(), platforms: { crunchyroll: false, hbomax: false } });
+    await start(f);
+    for (const action of ACTIONS) expect(input(action).disabled).toBe(false);
+    await change('nextEpisode', true);
+    expect(f.settings().actions.nextEpisode).toBe(true);
+    expect(f.settings().platforms).toEqual({ crunchyroll: false, hbomax: false });
   });
 
-  it('treats a missing receiver as unsupported and keeps the main preference available', async () => {
+  it('keeps settings usable even when Chrome cannot identify an active tab', async () => {
     const f = fixture();
-    f.setStatus(null);
+    vi.mocked(f.api.tabs.query).mockRejectedValueOnce(new Error('No tab'));
     await start(f);
-    expect(input('enabled').disabled).toBe(false);
-    for (const action of ACTIONS) expect(input(action).disabled).toBe(true);
+    for (const action of ACTIONS) expect(input(action).disabled).toBe(false);
+    await change('credits', true);
+    expect(f.settings().actions.credits).toBe(true);
     expect((document.getElementById('tab-pause') as HTMLButtonElement).disabled).toBe(true);
-    expect(document.getElementById('status')?.textContent).toContain('no es compatible');
-    expect(document.getElementById('status-detail')?.textContent).toContain('Crunchyroll o HBO Max');
-    expect(document.getElementById('service-heading')?.textContent).toBe('Esta pestaña');
-    expect(document.getElementById('autoplay-note')?.textContent).toContain('cada plataforma');
-    for (const action of ACTIONS) expect(input(action).checked).toBe(false);
-    expect(f.api.tabs.query).toHaveBeenCalledWith({ active: true, currentWindow: true });
-    expect(f.tabMessage).toHaveBeenCalledWith(7, { type: 'GET_STATUS' });
   });
 
   it('rolls back a rejected save and reports the error', async () => {
@@ -516,8 +492,8 @@ describe('popup controls', () => {
     const f = await start();
     f.setStatus({ ...originalStatus(), pageSupported: false, playerReady: false });
     await f.controller.refreshStatus();
-    expect(input('intro').disabled).toBe(true);
-    expect(document.getElementById('status')?.textContent).toContain('no es compatible');
+    expect(input('intro').disabled).toBe(false);
+    expect(document.getElementById('status')?.textContent).toContain('No hay un reproductor compatible');
     f.setStatus({ ...originalStatus(), paused: true });
     await f.controller.refreshStatus();
     expect(input('intro').disabled).toBe(false);

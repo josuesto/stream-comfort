@@ -1,35 +1,41 @@
-# Verification report 0.3.3
+# Verification report 0.4.0
 
-Date: September 7, 2026.
+Date: September 8, 2026.
 
-## Scope and result
+## Scope
 
-Removed Skip selected episodes from the popup, both translation catalogs, settings schema, worker request handling, adapters, and automation engine. Removed the episode-list editor and its unused helpers. The four remaining actions are intro, recap, credits, and next episode. Credits and next episode remain off by default.
+The popup now edits one shared action set from any page. A streaming tab, supported status response, or active episode is not required. The heading stays Playback preferences, and a separate notice names the currently supported platforms. Current-tab status, capability limitations, and temporary pause live below the action choices. Only tab pause depends on a supported player.
 
-Existing version-1 settings normalize without retired lists or their toggle. A serialized settings read removes those fields from local storage once; normal preference writes also discard them. Remaining action choices, language, and platform preferences are preserved. The migration does not edit tab-pause storage; Chrome itself clears session storage on an extension reload/update.
+The engine reads the same four action preferences on both services and still checks the service-specific capability, real control, visibility, episode identity, manual hold, and platform switch. No selector, permission, timestamp rule, or supported player locale was added.
+
+## Migration
+
+Settings schema 2 stores `actions` once. Known schema-1 preferences migrate on read/write; content scripts also normalize old data during bootstrap. Language, global enable, and platform switches are retained. An old false on either platform wins when combining an action, including disabled platforms. Missing old fields use previous defaults, so missing advancement choices remain off. Matching opt-ins survive. Retired list fields and service overrides are discarded. Unknown schemas fail closed.
+
+Worker writes remain serialized. Old per-service action messages are rejected so a stale popup cannot accidentally make a global change. Temporary tab-pause storage is not edited by migration; Chrome clears it when the extension reloads or updates.
 
 ## Automated verification
 
-`npm run check` passes TypeScript, 253 tests across nine suites, and the MV3 build. No permissions or playback selectors were added.
+TypeScript, the MV3 build, and 249 tests across nine suites pass.
 
 | Suite | Tests | Coverage |
 | --- | ---: | --- |
-| Settings | 23 | Defaults, language, platform/action isolation, legacy-list removal |
-| Episode identity | 8 | Observed watch routes and malformed/unrelated URLs |
-| Worker | 21 | Sender validation, serialized writes, migration, local language and tab pause |
+| Settings | 17 | Shared defaults, conservative legacy migration, invalid/inherited values, local language and independent platform switches |
+| Episode identity | 8 | Observed watch routes and invalid/unrelated URLs |
+| Worker | 21 | Migration persistence, no-service action writes, stale message rejection, serialized settings, sender validation, pause |
 | Crunchyroll | 19 | Native controls, credits/end signals, visibility and identity |
-| HBO Max | 69 | Intro/recap, native next offer, locale, menus and hidden controls |
-| Engine | 44 | Duplicate prevention, stale controls, manual hold, navigation and retired-data rejection |
-| Popup | 34 | Four-action UI, both languages, settings, platforms, pause, errors and idle stability |
-| Crunchyroll content | 15 | Initialization, events, manual interaction and SPA navigation |
-| HBO content | 20 | Intro/recap, credits/end, countdown cancellation and preferences |
+| HBO Max | 69 | Intro/recap, next offer, locale, menus and hidden controls |
+| Engine | 45 | One shared action set on both services, platform isolation, duplicates, stale controls, navigation and manual holds |
+| Popup | 34 | Configure from unrelated pages or with no tab, shared choices through navigation/reopen, languages, errors, tab limitations and idle stability |
+| Crunchyroll content | 16 | Saved choices before playback, entering a player later, settings changes without reload, events and navigation |
+| HBO content | 20 | Shared preferences loaded before playback, later edits, intro/recap, credits/end, native cancellation and navigation |
 
-New regressions prove that old enabled episode-list preferences cannot cause an early advance; the remaining Next episode action still requires its own toggle and the actual video end. Worker migration removes legacy fields once while retaining unrelated settings. Both language variants expose only the four remaining actions. Tests for the retired feature were removed; the lower total does not represent failing tests.
+Both language variants still produce zero idle DOM mutations over ten seconds while preserving focus and scroll. Obsolete per-service-setting tests were replaced with shared-setting and migration tests; the smaller total reflects the new model.
 
-## Browser and live evidence
+## Chrome preview
 
-The compiled popup was checked in a local Chrome page using a simulated Chrome API for both services and both UI languages. The selected-episode row and editor are absent; Platforms and Language remain usable. Document bounds remain 350 × 600 with no horizontal overflow. Both idle-popup tests continue to record zero DOM mutations over ten seconds and preserve focus and scroll.
+The actual compiled popup was exercised on a local Chrome page with a simulated Chrome API. Starting with no supported player, intro was switched off and next episode on. A newly opened Crunchyroll preview retained those choices and allowed every toggle, while explaining its unavailable recap control. Spanish was selected and HBO disabled through Platforms; a newly opened HBO preview retained the same action choices and reported its separate disabled platform state. The header consistently described shared preferences and supported platforms.
 
-This checks the compiled UI and fixture-backed logic, not a fresh end-to-end run of the installed extension on a streaming service. Earlier live player observations, manual next-episode checks, and the user's confirmation that popup stuttering stopped are retained in the [historical report](history/VERIFICATION-through-0.3.2.md). Its episode-list descriptions apply only to older versions.
+The checked document retained 350 × 600 bounds, with body clientWidth and scrollWidth both 335. This validates compiled presentation and preference flow in a preview; fixture tests validate playback wiring. It is not a new live streaming-service or native-toolbar end-to-end certification.
 
-Installed playback checks for natural endings, fullscreen, and complete pause/navigation behavior remain on the [manual checklist](MANUAL-TESTS.md). Reload the extension and open streaming pages to replace old running code. No new streaming-player locales or platforms are claimed as verified.
+Earlier live controls, manual navigation, and the user's confirmation that popup stuttering stopped are retained in the [0.3.3 report](history/VERIFICATION-0.3.3.md) and its linked history. The [manual checklist](MANUAL-TESTS.md) identifies remaining installed checks, particularly natural endings and fullscreen. Reload the extension and refresh streaming pages once after updating; ordinary preference changes then apply without reloads.

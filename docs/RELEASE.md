@@ -1,20 +1,15 @@
-# Version 0.3.3: four playback actions
+# Version 0.4.0: configure once, use on enabled platforms
 
-This release removes the selected-episode list and its automation at the user's request. The popup offers independent intro, recap, credits, and next-episode switches, plus global enable, Platforms, temporary tab pause, and English/Spanish language selection.
+The popup offers one shared set of intro, recap, credits, and next-episode preferences. Configure them from any tab before starting playback. A static notice says Currently supports Crunchyroll and HBO Max. Platforms controls where automation runs; it no longer selects an independent action profile.
 
 ## Acceptance criteria
 
-1. No selected-episode toggle, list editor, list-writing request, or early advancement based on saved episode IDs remains. Legacy fields are ignored by automation and removed on a settings read or write.
-2. Preserve existing language, platform preferences, and the four remaining action choices. Intro/recap default on; credits/next episode default off.
-3. Activate only recognized, visible, enabled controls belonging to the current player and episode. Credits requires the service's explicit offer; next episode requires actual video completion.
-4. Prevent duplicate attempts and actions on stale controls after navigation. Manual interaction and tab pauses retain priority.
-5. Keep English/Spanish controls, translated unsupported explanations, keyboard access, and stable popup bounds. Unchanged status polls must not rewrite the DOM.
-6. Deliver source, a loadable MV3 build, focused regression tests, and verification notes that distinguish fixtures from live service checks.
+1. All four action switches can be edited without a supported page, episode, tab ID, or status response. Save locally and retain choices through reopening and navigation.
+2. Both service engines use the same saved choices when playback starts later, and receive updates without a page reload. No popup must remain open.
+3. Preserve global, language, and platform switches. Combine older action profiles conservatively: false on either platform wins, missing fields use previous defaults, matching choices remain. Do not enable new episode advancement implicitly.
+4. Keep current-tab pause, manual hold, and capability status separate from editable preferences. Unavailable controls never trigger actions merely because the shared preference is on.
+5. Retain native-control evidence, duplicate/stale-control prevention, and separate credits versus actual-video-end advancement. No retired episode-list automation returns.
+6. Keep English/Spanish text, keyboard access, fixed popup bounds, and no DOM writes for unchanged status polls.
+7. Deliver source, a loadable MV3 build, focused tests, and honest fixture/preview/live evidence distinctions.
 
-These criteria are covered by automated tests and the compiled popup preview. Outstanding installed playback checks are listed separately in [VERIFICATION.md](VERIFICATION.md).
-
-## Service limitations
-
-Player evidence remains limited to the observed Spanish web players on Crunchyroll and HBO Max. The popup's language does not expand native player locale support. Crunchyroll did not expose a recap button. Both platforms require their native controls to be present; no arbitrary timestamps or episode sequence guesses are used.
-
-Credits may skip post-credit scenes. Native service autoplay remains independently configurable. No ad skipping, DRM changes, or access-control changes are implemented. See the [README](../README.md) and [historical evidence](history/VERIFICATION-through-0.3.2.md) for details and primary sources.
+Automated and preview results are in [VERIFICATION.md](VERIFICATION.md). Supported player variants remain the observed Spanish web players. Crunchyroll has no observed recap button. Native service autoplay remains independent; credits can skip post-credit scenes. No ad, DRM, subscription, or access-control changes are implemented.

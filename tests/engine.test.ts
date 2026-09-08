@@ -55,6 +55,29 @@ beforeEach(() => {
 afterEach(() => { engines.splice(0).forEach(engine => engine.dispose()); });
 
 describe('playback actions and settings', () => {
+  it('applies one saved action set to both services while keeping platform switches independent', () => {
+    const cr = fixture('crunchyroll');
+    const hbo = fixture('hbomax');
+    const shared = defaultSettings();
+    shared.actions.intro = false;
+    cr.state.settings = shared;
+    hbo.state.settings = shared;
+    const crClick = vi.spyOn(cr.snapshot.candidates.intro!, 'click');
+    const hboClick = vi.spyOn(hbo.snapshot.candidates.intro!, 'click');
+    cr.engine.step(); hbo.engine.step();
+    expect(crClick).not.toHaveBeenCalled();
+    expect(hboClick).not.toHaveBeenCalled();
+    shared.actions.intro = true;
+    shared.platforms.hbomax = false;
+    cr.engine.step(); hbo.engine.step();
+    expect(crClick).toHaveBeenCalledOnce();
+    expect(hboClick).not.toHaveBeenCalled();
+    shared.platforms.hbomax = true;
+    cr.engine.step(); hbo.engine.step();
+    expect(crClick).toHaveBeenCalledOnce();
+    expect(hboClick).toHaveBeenCalledOnce();
+  });
+
   it('ignores retired selection data and advances only at the normal enabled video end', () => {
     const f = fixture();
     f.snapshot.candidates = {};
@@ -63,10 +86,10 @@ describe('playback actions and settings', () => {
     Object.assign(f.snapshot.candidates, { selectedEpisode: next });
     Object.assign(f.snapshot.capabilities, { selectedEpisode: { supported: true, detail: 'legacy' } });
     Object.assign(f.state.settings, { episodeLists: { crunchyroll: [f.snapshot.episodeId], hbomax: [] } });
-    Object.assign(f.state.settings.services.crunchyroll, { selectedEpisode: true });
+    Object.assign(f.state.settings.actions, { selectedEpisode: true });
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
-    f.state.settings.services.crunchyroll.nextEpisode = true;
+    f.state.settings.actions.nextEpisode = true;
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
     media(f.snapshot.video!, { ended: true, paused: true });
@@ -96,9 +119,9 @@ describe('playback actions and settings', () => {
     f.state.settings.enabled = false;
     f.engine.step();
     f.state.settings.enabled = true;
-    f.state.settings.services.crunchyroll.intro = false;
+    f.state.settings.actions.intro = false;
     f.engine.step();
-    f.state.settings.services.crunchyroll.intro = true;
+    f.state.settings.actions.intro = true;
     f.state.paused = true;
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
@@ -133,16 +156,15 @@ describe('playback actions and settings', () => {
     expect(click).toHaveBeenCalledOnce();
   });
 
-  it.each(['crunchyroll', 'hbomax'] as const)('keeps %s independent from the other platform and its action preferences', service => {
+  it.each(['crunchyroll', 'hbomax'] as const)('keeps %s using shared action choices independently of the other platform switch', service => {
     const other = service === 'crunchyroll' ? 'hbomax' : 'crunchyroll';
     const f = fixture(service);
     f.state.settings.platforms[other] = false;
-    f.state.settings.services[other].intro = false;
-    f.state.settings.services[service].intro = false;
+    f.state.settings.actions.intro = false;
     const click = vi.spyOn(f.snapshot.candidates.intro!, 'click');
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
-    f.state.settings.services[service].intro = true;
+    f.state.settings.actions.intro = true;
     f.engine.step();
     expect(click).toHaveBeenCalledOnce();
   });
@@ -163,8 +185,8 @@ describe('playback actions and settings', () => {
   it('uses the HBO action preferences and one shared credits/next-episode attempt', () => {
     const f = fixture('hbomax');
     f.snapshot.candidates = {};
-    f.state.settings.services.hbomax.credits = true;
-    f.state.settings.services.hbomax.nextEpisode = true;
+    f.state.settings.actions.credits = true;
+    f.state.settings.actions.nextEpisode = true;
     const credits = vi.spyOn(f.add('credits'), 'click');
     const next = vi.spyOn(f.add('nextEpisode'), 'click');
     f.engine.step();
@@ -177,7 +199,7 @@ describe('playback actions and settings', () => {
   it('requires the real media ended signal for automatic next episode', () => {
     const f = fixture();
     f.snapshot.candidates = {};
-    f.state.settings.services.crunchyroll.nextEpisode = true;
+    f.state.settings.actions.nextEpisode = true;
     const click = vi.spyOn(f.add('nextEpisode'), 'click');
     f.engine.step();
     expect(click).not.toHaveBeenCalled();
@@ -189,8 +211,8 @@ describe('playback actions and settings', () => {
   it('shares one advancement attempt between credits and next episode', () => {
     const f = fixture();
     f.snapshot.candidates = {};
-    f.state.settings.services.crunchyroll.credits = true;
-    f.state.settings.services.crunchyroll.nextEpisode = true;
+    f.state.settings.actions.credits = true;
+    f.state.settings.actions.nextEpisode = true;
     const credits = vi.spyOn(f.add('credits'), 'click');
     const next = vi.spyOn(f.add('nextEpisode'), 'click');
     f.engine.step();

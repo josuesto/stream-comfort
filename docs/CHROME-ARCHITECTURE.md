@@ -50,10 +50,16 @@ Chrome automatically sizes its popup to the document within 25×25 and 800×600 
 
 ## Popup language (0.3.2)
 
-Use bundled, typed English and Spanish catalogs with a locally saved `language` preference. Missing or invalid values normalize to English without resetting version-1 playback settings. The popup-only `SET_LANGUAGE` request uses the same serialized storage queue as other preferences. No new permission, network request, browser-language dependency, or remote translation service is involved.
+Use bundled, typed English and Spanish catalogs with a locally saved `language` preference. Missing or invalid values normalize to English while preserving the current playback settings. The popup-only `SET_LANGUAGE` request uses the same serialized storage queue as other preferences. No new permission, network request, browser-language dependency, or remote translation service is involved.
 
 Adapters expose optional semantic capability reasons so the popup can explain player limitations in either UI language. Older status payloads remain accepted; English uses a generic localized explanation when no reason code is available. Native control labels and selectors are not translated or changed. Language rendering updates text without replacing the control nodes. Unchanged status polls continue to avoid DOM writes.
 
 ## Retired episode-list settings (0.3.3)
 
-The action schema and engine support only intro, recap, credits, and nextEpisode. Normalization drops the retired `episodeLists` and `selectedEpisode` fields. A serialized GET_SETTINGS handler detects them in known version-1 settings and writes the normalized object once, preserving current preferences. All normal preference writes normalize too. The retired list request is no longer handled and the retired action key is rejected. No old list can enable advancement in the new engine.
+The action schema and engine support only intro, recap, credits, and nextEpisode. Normalization drops the retired `episodeLists` and `selectedEpisode` fields. The schema-2 migration discards them along with old per-service action overrides when normalizing known version-1 settings. All normal preference writes normalize too. The retired list request is no longer handled and the retired action key is rejected. No old list can enable advancement in the new engine.
+
+## Shared preferences (0.4.0)
+
+Settings schema 2 stores a single `actions` object and independent `platforms` booleans. A settings mutation has only a key and boolean value; the worker rejects an obsolete service field. The popup uses saved settings for its checkboxes regardless of the current tab. Runtime status is only for the separate tab controls and explanations. Service adapters still decide which real controls may be used.
+
+Legacy schema-1 actions are combined using logical AND across both known platforms after filling old defaults. This preserves a false choice and avoids broadening an advancement opt-in. Language/global/platform preferences survive. Reads and writes serialize migration in the worker; content bootstrap independently normalizes storage, so an episode opened later sees the same choices even if the popup was never opened after updating.

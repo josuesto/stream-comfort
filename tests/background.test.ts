@@ -83,10 +83,10 @@ describe('MV3 settings and temporary tab pause', () => {
     current.language = 'es';
     current.enabled = false;
     current.platforms.hbomax = false;
-    current.services.crunchyroll.credits = true;
+    current.actions.credits = true;
     localData.settings = {
-      ...current, episodeLists: { crunchyroll: ['EPISODE01'], hbomax: [] },
-      services: { ...current.services, crunchyroll: { ...current.services.crunchyroll, selectedEpisode: true } },
+      ...current, version: 1, episodeLists: { crunchyroll: ['EPISODE01'], hbomax: [] },
+      services: { crunchyroll: { ...current.actions, selectedEpisode: true }, hbomax: current.actions },
     };
     sessionData['pause:17'] = true;
     expect((await request({ type: 'GET_SETTINGS' })).settings).toEqual(current);
@@ -94,7 +94,7 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(sessionData['pause:17']).toBe(true);
     await request({ type: 'GET_SETTINGS' });
     expect(api.storage.local.set).toHaveBeenCalledOnce();
-    expect((await request({ type: 'SET_SETTING', key: 'selectedEpisode', value: true, service: 'crunchyroll' })).ok).toBe(false);
+    expect((await request({ type: 'SET_SETTING', key: 'selectedEpisode', value: true })).ok).toBe(false);
     const respond = vi.fn();
     expect(listener({ type: 'SET_EPISODE_LIST', service: 'crunchyroll', episodeIds: ['EPISODE01'] }, popup, respond)).toBeUndefined();
     expect(respond).not.toHaveBeenCalled();
@@ -105,13 +105,13 @@ describe('MV3 settings and temporary tab pause', () => {
     await Promise.all([
       request({ type: 'SET_LANGUAGE', language: 'es' }),
       request({ type: 'SET_PLATFORM', service: 'hbomax', enabled: false }),
-      request({ type: 'SET_SETTING', key: 'credits', service: 'crunchyroll', value: true }),
+      request({ type: 'SET_SETTING', key: 'credits', value: true }),
     ]);
     await boot();
     const saved = (await request({ type: 'GET_SETTINGS' })).settings!;
     expect(saved.language).toBe('es');
     expect(saved.platforms.hbomax).toBe(false);
-    expect(saved.services.crunchyroll.credits).toBe(true);
+    expect(saved.actions.credits).toBe(true);
     expect((await request({ type: 'SET_LANGUAGE', language: 'en' })).settings).toEqual({ ...saved, language: 'en' });
   });
 
@@ -128,42 +128,39 @@ describe('MV3 settings and temporary tab pause', () => {
   it('serializes simultaneous edits so independent settings are not lost', async () => {
     await Promise.all([
       request({ type: 'SET_SETTING', key: 'enabled', value: false }),
-      request({ type: 'SET_SETTING', key: 'intro', value: false, service: 'crunchyroll' }),
-      request({ type: 'SET_SETTING', key: 'nextEpisode', value: true, service: 'crunchyroll' }),
-      request({ type: 'SET_SETTING', key: 'recap', value: false, service: 'hbomax' }),
+      request({ type: 'SET_SETTING', key: 'intro', value: false }),
+      request({ type: 'SET_SETTING', key: 'nextEpisode', value: true }),
+      request({ type: 'SET_SETTING', key: 'recap', value: false }),
       request({ type: 'SET_PLATFORM', service: 'hbomax', enabled: false }),
     ]);
     const result = await request({ type: 'GET_SETTINGS' });
     expect(result.settings?.enabled).toBe(false);
-    expect(result.settings?.services.crunchyroll).toEqual({ intro: false, recap: true, credits: false, nextEpisode: true });
-    expect(result.settings?.services.hbomax).toEqual({ intro: true, recap: false, credits: false, nextEpisode: false });
+    expect(result.settings?.actions).toEqual({ intro: false, recap: false, credits: false, nextEpisode: true });
     expect(result.settings?.platforms).toEqual({ crunchyroll: true, hbomax: false });
   });
 
-  it('reads old single-service preferences without overwriting them and migrates on the next edit', async () => {
-    const previous = {
-      version: 1, enabled: false,
+  it('migrates old single-service preferences once without broadening advancement', async () => {
+    localData.settings = { version: 1, enabled: false,
       services: { crunchyroll: { intro: false, recap: false, credits: true, nextEpisode: true } },
     };
-    localData.settings = previous;
     const read = await request({ type: 'GET_SETTINGS' }, hboContent);
-    expect(read.ok).toBe(true);
+    expect(read.settings?.version).toBe(2);
     expect(read.settings?.enabled).toBe(false);
-    expect(read.settings?.services.crunchyroll).toEqual(previous.services.crunchyroll);
-    expect(read.settings?.services.hbomax).toEqual(defaultSettings().services.hbomax);
-    expect(api.storage.local.set).not.toHaveBeenCalled();
-    const changed = await request({ type: 'SET_SETTING', key: 'intro', value: false, service: 'hbomax' });
-    expect(changed.settings?.services.crunchyroll).toEqual(previous.services.crunchyroll);
-    expect(changed.settings?.services.hbomax.intro).toBe(false);
+    expect(read.settings?.actions).toEqual({ intro: false, recap: false, credits: false, nextEpisode: false });
+    expect(api.storage.local.set).toHaveBeenCalledOnce();
+    await request({ type: 'GET_SETTINGS' });
+    expect(api.storage.local.set).toHaveBeenCalledOnce();
+    const changed = await request({ type: 'SET_SETTING', key: 'intro', value: true });
+    expect(changed.settings?.actions.intro).toBe(true);
     expect(localData.settings).toEqual(changed.settings);
   });
 
-  it('requires an explicit supported service for action mutations', async () => {
-    for (const service of [undefined, null, '', 'hbo', '__proto__', 'hbomax.evil']) {
+  it('accepts shared choices without a service and rejects stale per-service edits', async () => {
+    for (const service of ['crunchyroll', 'hbomax', undefined, null, '__proto__']) {
       expect((await request({ type: 'SET_SETTING', key: 'credits', value: true, service })).ok).toBe(false);
     }
     expect(api.storage.local.set).not.toHaveBeenCalled();
-    expect((await request({ type: 'SET_SETTING', key: 'enabled', value: false })).ok).toBe(true);
+    expect((await request({ type: 'SET_SETTING', key: 'credits', value: true })).settings?.actions.credits).toBe(true);
   });
 
   it('keeps settings after a worker restart', async () => {
@@ -173,7 +170,7 @@ describe('MV3 settings and temporary tab pause', () => {
   });
 
   it('preserves each platform switch and action choices across global toggles and worker restart', async () => {
-    await request({ type: 'SET_SETTING', key: 'credits', value: true, service: 'hbomax' });
+    await request({ type: 'SET_SETTING', key: 'credits', value: true });
     await request({ type: 'SET_PLATFORM', service: 'hbomax', enabled: false });
     await request({ type: 'SET_SETTING', key: 'enabled', value: false });
     await request({ type: 'SET_SETTING', key: 'enabled', value: true });
@@ -181,8 +178,7 @@ describe('MV3 settings and temporary tab pause', () => {
     const result = await request({ type: 'GET_SETTINGS' });
     expect(result.settings?.enabled).toBe(true);
     expect(result.settings?.platforms).toEqual({ crunchyroll: true, hbomax: false });
-    expect(result.settings?.services.hbomax.credits).toBe(true);
-    expect(result.settings?.services.crunchyroll.credits).toBe(false);
+    expect(result.settings?.actions.credits).toBe(true);
   });
 
   it('rejects unknown platforms, malformed switches, and content-script platform mutations', async () => {
@@ -219,7 +215,7 @@ describe('MV3 settings and temporary tab pause', () => {
     expect(await request({ type: 'GET_SETTINGS' }, hboContent)).toEqual({ ok: true, settings: defaultSettings() });
     expect(await request({ type: 'GET_TAB_PAUSE' }, hboContent)).toEqual({ ok: true, paused: true });
     expect(await request({ type: 'GET_TAB_PAUSE' }, content)).toEqual({ ok: true, paused: false });
-    expect((await request({ type: 'SET_SETTING', key: 'credits', value: true, service: 'hbomax' }, hboContent)).ok).toBe(false);
+    expect((await request({ type: 'SET_SETTING', key: 'credits', value: true }, hboContent)).ok).toBe(false);
   });
 
   it('cleans up only the closed tab', async () => {
