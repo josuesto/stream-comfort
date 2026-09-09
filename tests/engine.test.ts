@@ -78,7 +78,7 @@ describe('playback actions and settings', () => {
     expect(hboClick).toHaveBeenCalledOnce();
   });
 
-  it('ignores retired selection data and advances only at the normal enabled video end', () => {
+  it('ignores retired selection data and advances only when Next episode is enabled', () => {
     const f = fixture();
     f.snapshot.candidates = {};
     const next = f.add('nextEpisode');
@@ -91,7 +91,7 @@ describe('playback actions and settings', () => {
     expect(click).not.toHaveBeenCalled();
     f.state.settings.actions.nextEpisode = true;
     f.engine.step();
-    expect(click).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
     media(f.snapshot.video!, { ended: true, paused: true });
     f.engine.step();
     f.engine.step();
@@ -196,14 +196,38 @@ describe('playback actions and settings', () => {
     expect(next).not.toHaveBeenCalled();
   });
 
-  it('requires the real media ended signal for automatic next episode', () => {
+  it('acts on a contextual next offer during playback without waiting for media end', () => {
     const f = fixture();
     f.snapshot.candidates = {};
     f.state.settings.actions.nextEpisode = true;
     const click = vi.spyOn(f.add('nextEpisode'), 'click');
     f.engine.step();
-    expect(click).not.toHaveBeenCalled();
+    expect(click).toHaveBeenCalledOnce();
     media(f.snapshot.video!, { ended: true, paused: true });
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('leaves a next offer alone while paused and clicks once playback resumes', () => {
+    const f = fixture();
+    f.snapshot.candidates = {};
+    f.state.settings.actions.nextEpisode = true;
+    const click = vi.spyOn(f.add('nextEpisode'), 'click');
+    media(f.snapshot.video!, { paused: true });
+    f.engine.step();
+    expect(click).not.toHaveBeenCalled();
+    media(f.snapshot.video!, { paused: false });
+    f.engine.step();
+    expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('still advances from a native offer at real media end while the video is paused', () => {
+    const f = fixture();
+    f.snapshot.candidates = {};
+    f.state.settings.actions.nextEpisode = true;
+    const click = vi.spyOn(f.add('nextEpisode'), 'click');
+    media(f.snapshot.video!, { ended: true, paused: true });
+    f.engine.step();
     f.engine.step();
     expect(click).toHaveBeenCalledOnce();
   });

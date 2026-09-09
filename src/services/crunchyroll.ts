@@ -19,7 +19,7 @@ const capabilities: Capabilities = {
   intro: { supported: true, detail: 'Control «Saltar intro» verificado en español.' },
   recap: { supported: true, detail: 'Control «Saltar resumen» verificado en español; disponible en los episodios que lo ofrecen.' },
   credits: { supported: true, detail: 'Requiere «Saltar créditos» y el botón siguiente visibles. Puede omitir escenas finales.' },
-  nextEpisode: { supported: true, detail: 'Solo al finalizar realmente el vídeo y con el botón siguiente visible.' },
+  nextEpisode: { supported: true, detail: 'Avanza con el aviso «Saltar créditos» y el botón siguiente, o al finalizar el vídeo. Puede omitir escenas finales.' },
 };
 
 function unique<T extends Element>(root: ParentNode, selector: string): T | null {
@@ -42,6 +42,7 @@ export function createCrunchyrollAdapter(
         intro: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el botón de intro en español.'},
         recap: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el botón de resumen en español.'},
         credits: {supported:false, reason:'spanishPlayerRequired', detail:'Esta versión reconoce el aviso de créditos en español.'},
+        nextEpisode: {supported:true, detail:'En este idioma, solo al finalizar el vídeo y con el botón siguiente visible.'},
       };
       const empty: PlaybackSnapshot = { episodeId, player: null, video: null, candidates: {}, capabilities: localCapabilities };
       if (!episodeId) return empty;
@@ -62,8 +63,13 @@ export function createCrunchyrollAdapter(
         const text = skip.textContent?.trim();
         if (label === 'Saltar intro' && text === label) result.candidates.intro = skip;
         if (label === 'Saltar resumen' && text === label) result.candidates.recap = skip;
-        if (label === 'Saltar créditos' && text === label && next && !video.ended) result.candidates.credits = next;
+        if (label === 'Saltar créditos' && text === label && next && !video.ended) {
+          result.candidates.credits = next;
+          result.candidates.nextEpisode = next;
+        }
       }
+      // The toolbar next button is also present during normal playback. The
+      // native credits prompt above, or a real media end, establishes readiness.
       if (next && video.ended) result.candidates.nextEpisode = next;
       return result;
     },

@@ -63,3 +63,9 @@ The action schema and engine support only intro, recap, credits, and nextEpisode
 Settings schema 2 stores a single `actions` object and independent `platforms` booleans. A settings mutation has only a key and boolean value; the worker rejects an obsolete service field. The popup uses saved settings for its checkboxes regardless of the current tab. Runtime status is only for the separate tab controls and explanations. Service adapters still decide which real controls may be used.
 
 Legacy schema-1 actions are combined using logical AND across both known platforms after filling old defaults. This preserves a false choice and avoids broadening an advancement opt-in. Language/global/platform preferences survive. Reads and writes serialize migration in the worker; content bootstrap independently normalizes storage, so an episode opened later sees the same choices even if the popup was never opened after updating.
+
+## Contextual next offers (0.5.0)
+
+The service adapter is responsible for proving an action is ready now. A nextEpisode candidate means a recognized contextual next offer or an actual media end with a valid native next control. HBO's up-next container is contextual. Crunchyroll's toolbar next button is permanent, so early advancement additionally requires its observed, visible credits prompt.
+
+The shared engine accepts a ready next candidate during active playback and at the real media end, including the ended video's normal paused state. It continues rejecting a paused video that has not ended. The synchronous ended listener remains a fallback for end-time offers, not a prerequisite for every next action. Credits and next share the advancement ledger, preventing repeated clicks even if the offer's text or node changes. No Chrome API changes or additional permissions are needed.

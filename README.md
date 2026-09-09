@@ -1,6 +1,6 @@
 # Stream Comfort
 
-A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.4.1** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
+A Chrome extension that automates repetitive playback controls, with independent skip choices and local preferences. The goal is to support more streaming platforms over time. Version **0.5.0** supports the observed Spanish web players on **Crunchyroll and HBO Max**.
 
 The popup defaults to **English**, with an **English / Español** language selector. This updates labels, status messages, errors, and platform settings. Your choice is saved on this device. The popup stability fix from 0.3.1 is retained; the user has confirmed the reported flickering stopped.
 
@@ -13,9 +13,11 @@ Choose your skip preferences from **any tab**, before opening a streaming episod
 | Skip intros | Native “Saltar intro” button | Native “Omitir intro” button | On |
 | Skip recaps | Native “Saltar resumen” button, when offered | Native “Omitir resumen” button | On |
 | Skip credits | Requires visible credits and Next episode controls | Uses the native next-episode offer during credits | Off |
-| Next episode | At the actual video end, if Next episode remains visible | At the actual video end, if the next-episode offer remains visible | Off |
+| Next episode | When the native credits prompt and next button are visible; also at actual video end if next remains available | When the native next-episode offer appears, without waiting for the video to end | Off |
 
-The extension activates recognized, visible playback controls. It never estimates intro boundaries or uses arbitrary content timestamps. Skipping credits may skip post-credit scenes.
+The extension activates recognized, visible playback controls. It never estimates intro boundaries or uses arbitrary content timestamps. **Next episode now clicks the offer when it appears**, even with Skip credits off. Both options can skip credits and post-credit scenes; either can request the same advance, and enabling both still produces one attempt. Leave both off to have the extension preserve credits.
+
+Crunchyroll's next button is permanently present in its toolbar. During playback, the extension requires the observed “Saltar créditos” prompt before using it; merely showing the toolbar does not skip an episode. If that prompt is absent, Next episode can still act at the actual media end when the next button is visible.
 
 ## Install or update
 
@@ -27,7 +29,7 @@ Requires Chrome 120 or later.
 4. Pin **Stream Comfort** in Chrome’s extensions menu for easy access.
 5. Reload streaming pages that were already open before installation.
 
-If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.4.1**. Keep the extension installed to preserve its settings. The update preserves your language, global switch, and platform switches. Matching old action choices are kept. If an action was off on either platform, its new shared toggle starts off; this avoids expanding an old advancement opt-in to another platform. Missing old service settings use the previous safe defaults. You can choose the shared value yourself afterward.
+If already installed from this folder, click **Reload** on its extension card, then reload open streaming pages. The card should show **0.5.0**. Keep the extension installed to preserve its settings. This update keeps all saved choices and changes an enabled Next episode option to act when the offer appears. When upgrading from pre-0.4.0 per-platform settings, matching old action choices are kept; an action previously off on either platform starts off in the shared settings. Missing old service settings use the previous safe defaults.
 
 Chrome loads the extracted `dist` directory, not the ZIP itself. Keep that directory in place.
 
@@ -51,7 +53,7 @@ The service’s own autoplay is independent. Turning off **Next episode** here d
 
 - Player evidence covers Crunchyroll in Spanish (Spain) and HBO Max in Spanish (Latin America), in the main document. Other player languages, iframes, and platforms are not advertised as verified. English popup text does not imply English player support.
 - Controls may be absent from some episodes. A native Crunchyroll “Saltar resumen” control was observed and manually activated on September 8, 2026. The [Crunchyroll help article](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature) still says recaps are unavailable; support here follows the actual inspected player, not a claim of catalog-wide availability. See [fixture provenance](fixtures/README.md).
-- Advancement requires a visible, enabled control. Completion uses the actual media state, never proximity to the duration. Native autoplay may act first.
+- Advancement requires a visible, enabled contextual next offer, or the actual media end with a valid next control. There is no remaining-time threshold or countdown delay. Native autoplay may act first.
 - Only visible documents are automated. Ambiguous, hidden, and stale controls are rejected. Each advancement consumes one attempt and blocks further actions against that episode. The in-memory ledger retains at most 64 episodes; reloading the document starts a new ledger.
 - No ad skipping or changes to DRM, subscriptions, or regional restrictions. HBO’s generic promotional “Saltar” control is ignored.
 - The only API permission is **storage**. Content scripts run only on `www.crunchyroll.com` and `play.hbomax.com`. No access to all websites or general browsing history is requested.
@@ -71,6 +73,6 @@ This checks TypeScript, runs tests, and builds the loadable extension in `dist/`
 
 Shared types, settings, and episode identity live in `src/shared`; automation in `src/core`; service adapters in `src/services`; the worker and content script in `src`; and the popup and typed language catalogs in `src/popup`. New services require their own evidence and minimal permissions.
 
-Version 0.4.1 passes **267 tests across nine suites**. New tests cover Crunchyroll recap detection, independent preferences, duplicate prevention, reuse of the intro button, stale controls after episode navigation, manual holds, and popup availability. The native recap button was inspected and manually activated on the live service; the new extension automation is fixture-tested. The earlier compiled popup preview and user-confirmed flicker fix remain documented. Installed end-to-end playback checks are tracked separately.
+Version 0.5.0 passes **275 tests across nine suites**. Regression coverage includes immediate HBO offers with native autoplay on or off, Next episode enabled independently of credits, Crunchyroll's permanent-toolbar guard, duplicate prevention, actual-end fallback, manual holds, episode navigation, settings, and both popup languages. Detection uses controls inspected on the live services; the new automatic-offer behavior is fixture-tested. Installed end-to-end playback checks are tracked separately.
 
 See the [verification report](docs/VERIFICATION.md), [acceptance criteria](docs/RELEASE.md), [manual checklist](docs/MANUAL-TESTS.md), [Chrome architecture](docs/CHROME-ARCHITECTURE.md), and [backlog](docs/BACKLOG.md). Historical verification notes are retained in Spanish.

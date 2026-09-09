@@ -206,7 +206,9 @@ export class AutomationEngine {
       if (node.matches(':disabled') || node.getAttribute('aria-disabled') === 'true' || node.hasAttribute('inert')) return false;
     }
     const video = snapshot.video;
-    if (!video || (action === 'nextEpisode' ? !video.ended : (video.paused || video.ended))) return false;
+    // Adapters establish when a contextual next-episode offer is ready. A
+    // permanent transport button alone is never a pre-end candidate.
+    if (!video || (video.ended ? action !== 'nextEpisode' : video.paused)) return false;
     const entries = this.ledger.get(snapshot.episodeId!);
     // Once navigation is requested, no other action may touch the old episode.
     return !entries?.has(action) && !entries?.has('advance');

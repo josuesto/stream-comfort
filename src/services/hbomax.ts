@@ -37,7 +37,7 @@ export function createHboMaxAdapter(
         intro: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir intro».' : 'El control de intro solo está verificado en español.'},
         recap: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa el control «Omitir resumen».' : 'El control de resumen solo está verificado en español.'},
         credits: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Avanza cuando HBO ofrece «Siguiente episodio» durante los créditos. Puede omitir escenas finales.' : 'El aviso de siguiente episodio solo está verificado en español.'},
-        nextEpisode: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Avanza al terminar el vídeo si HBO mantiene visible su botón siguiente.' : 'El aviso de siguiente episodio solo está verificado en español.'},
+        nextEpisode: {supported:spanish, ...(!spanish ? {reason: 'spanishPlayerRequired' as const} : {}), detail:spanish ? 'Activa «Siguiente episodio» en cuanto aparece el aviso. Puede omitir créditos y escenas finales.' : 'El aviso de siguiente episodio solo está verificado en español.'},
       };
       const episodeId = hboEpisodeIdFromUrl(getUrl());
       const empty: PlaybackSnapshot = {episodeId, player:null, video:null, candidates:{}, capabilities};
@@ -70,7 +70,8 @@ export function createHboMaxAdapter(
       const recognized = /^Reproducir siguiente episodio, (?:Se reproducirá automáticamente en \d+ segundos|La reproducción automática está apagada)$/.test(name);
       if (next && !next.disabled && next.getAttribute('aria-disabled') !== 'true' && visible(next)
         && recognized && nextLabel?.textContent?.trim() === 'Siguiente episodio') {
-        result.candidates[video.ended ? 'nextEpisode' : 'credits'] = next;
+        result.candidates.nextEpisode = next;
+        if (!video.ended) result.candidates.credits = next;
       }
       return result;
     },

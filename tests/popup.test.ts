@@ -22,7 +22,7 @@ const originalStatus = (service: ServiceId = 'crunchyroll'): TabStatus => ({
     intro: { supported: true, detail: 'Control de intro verificado.' },
     recap: { supported: false, detail: 'No se ha verificado un control de resumen.' },
     credits: { supported: false, detail: 'No hay una señal fiable de créditos.' },
-    nextEpisode: { supported: true, detail: 'Avanza al finalizar el vídeo.' },
+    nextEpisode: { supported: true, detail: 'Activa el aviso de siguiente episodio al aparecer.' },
   },
 });
 
@@ -113,6 +113,19 @@ describe('popup controls', () => {
       .toEqual(['intro', 'recap', 'credits', 'nextEpisode']);
     expect(document.querySelector('#selectedEpisode, #edit-episodes, #episodes-panel')).toBeNull();
     expect(input('nextEpisode').checked).toBe(false);
+  });
+
+  it.each(['en', 'es'] as const)('explains immediate next offers in %s and enables them independently of credits', async language => {
+    const f = fixture();
+    f.setSettings({ ...originalSettings(), language });
+    f.setStatus(null);
+    await start(f);
+    expect(document.getElementById('nextEpisode-detail')?.textContent).toBe(language === 'en'
+      ? 'Clicks the next-episode offer when it appears. May skip credits.'
+      : 'Activa el aviso de siguiente episodio al aparecer. Puede omitir créditos.');
+    await change('nextEpisode', true);
+    expect(f.settings().actions.nextEpisode).toBe(true);
+    expect(f.settings().actions.credits).toBe(false);
   });
 
   it.each(['en', 'es'] as const)('keeps an unchanged %s popup still instead of rewriting it on each poll', async language => {

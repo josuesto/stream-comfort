@@ -29,6 +29,7 @@ describe('observed Crunchyroll DOM',()=>{
     skip.setAttribute('aria-label','Saltar créditos');
     skip.querySelector('span')!.textContent='Saltar créditos';
     expect(adapter().inspect().candidates.credits).toBe(document.querySelector('[data-testid="next-episode-button"]'));
+    expect(adapter().inspect().candidates.nextEpisode).toBe(document.querySelector('[data-testid="next-episode-button"]'));
     expect(adapter().inspect().candidates.intro).toBeUndefined();
   });
   it('ignores credits text when its actual prompt is hidden',()=>{
@@ -37,8 +38,9 @@ describe('observed Crunchyroll DOM',()=>{
     skip.querySelector('span')!.textContent='Saltar créditos';
     skip.setAttribute('aria-hidden','true');
     expect(adapter().inspect().candidates.credits).toBeUndefined();
+    expect(adapter().inspect().candidates.nextEpisode).toBeUndefined();
   });
-  it('requires actual ended state for episode advancement',()=>{
+  it('ignores the permanent toolbar next button without a credits cue or real media end',()=>{
     const video=document.querySelector('video')!;
     Object.defineProperty(video,'currentTime',{value:999999});
     expect(adapter().inspect().candidates.nextEpisode).toBeUndefined();

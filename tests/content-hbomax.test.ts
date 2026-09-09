@@ -135,13 +135,25 @@ describe('HBO advancement wiring', () => {
     expect(click).toHaveBeenCalledOnce();
   });
 
-  it('waits for video.ended when only end-of-video advancement is enabled', async () => {
-    const click = vi.spyOn(mountNext(),'click');
+  it.each(['countdown', 'autoplay-off'] as const)('clicks an appearing %s offer with only Next episode enabled', async offer => {
+    mountNext();
+    if (offer === 'autoplay-off') {
+      control('up_next').outerHTML = readFileSync(resolve('fixtures/hbomax/up-next-off-es.html'), 'utf8');
+    }
+    const click = vi.spyOn(control('player-ux-up-next-button'), 'click');
+    control('up_next').style.visibility = 'hidden';
     const settings = defaultSettings();
     settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
     await import('../src/content'); await tick();
     expect(click).not.toHaveBeenCalled();
+    control('up_next').style.visibility = 'visible';
+    await tick();
+    expect(document.querySelector('video')!.ended).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+    expect(status().lastAction).toBe('nextEpisode');
+    control('player-ux-up-next-button').setAttribute('aria-label', 'Reproducir siguiente episodio, Se reproducirá automáticamente en 8 segundos');
+    await tick(1200);
     media({ended:true,paused:true});
     document.querySelector('video')!.dispatchEvent(new Event('ended'));
     await tick();
@@ -151,15 +163,18 @@ describe('HBO advancement wiring', () => {
   it('clicks synchronously at the real end before HBO removes its player', async () => {
     const next = mountNext();
     const click = vi.spyOn(next,'click');
+    control('up_next').style.visibility = 'hidden';
     const settings = defaultSettings();
     settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
     await import('../src/content'); await tick();
+    expect(click).not.toHaveBeenCalled();
     const video = document.querySelector('video')!;
     video.addEventListener('ended', () => {
       expect(click).toHaveBeenCalledOnce();
       control('playerContainer').remove();
     });
+    control('up_next').style.visibility = 'visible';
     media({ended:true,paused:true});
     video.dispatchEvent(new Event('ended'));
     expect(click).toHaveBeenCalledOnce();
@@ -169,6 +184,7 @@ describe('HBO advancement wiring', () => {
 
   it('never treats an ended event alone, or one from another video, as permission to advance', async () => {
     const click = vi.spyOn(mountNext(),'click');
+    media({ paused: true });
     const settings = defaultSettings();
     settings.actions.nextEpisode = true;
     storageGet.mockResolvedValue({[SETTINGS_KEY]:settings});
@@ -182,11 +198,11 @@ describe('HBO advancement wiring', () => {
     expect(click).not.toHaveBeenCalled();
   });
 
-  it('respects cancelling native autoplay before a pending automation step', async () => {
+  it.each(['credits', 'nextEpisode'] as const)('respects cancelling native autoplay before a pending %s step', async action => {
     const click = vi.spyOn(mountNext(),'click');
     await import('../src/content'); await tick();
     const settings = defaultSettings();
-    settings.actions.credits = true;
+    settings.actions[action] = true;
     changeSettings(settings);
     trustedInput('pointerdown',control('player-ux-up-next-dismiss'));
     await tick();
@@ -195,6 +211,28 @@ describe('HBO advancement wiring', () => {
     message({type:'TAB_PAUSE_CHANGED',paused:false});
     await tick();
     expect(click).toHaveBeenCalledOnce();
+  });
+
+  it('does not reuse the previous episode offer during SPA navigation', async () => {
+    const click = vi.spyOn(mountNext(), 'click');
+    const settings = defaultSettings();
+    settings.actions.nextEpisode = true;
+    storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
+    await import('../src/content'); await tick();
+    expect(click).toHaveBeenCalledOnce();
+    history.pushState({}, '', secondRoute);
+    await tick(1200);
+    expect(click).toHaveBeenCalledOnce();
+    expect(status().playerReady).toBe(false);
+    control('up_next').style.visibility = 'hidden';
+    document.querySelector('video')!.dispatchEvent(new Event('loadstart'));
+    await tick();
+    expect(status().playerReady).toBe(true);
+    expect(click).toHaveBeenCalledOnce();
+    // The new episode's offer may reuse the same DOM nodes.
+    control('up_next').style.visibility = 'visible';
+    await tick(1200);
+    expect(click).toHaveBeenCalledTimes(2);
   });
 });
 

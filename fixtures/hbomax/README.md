@@ -30,3 +30,9 @@ El panel de episodios observado cargaba solo una parte de la temporada. No se ex
 La [documentación de HBO](https://help.hbomax.com/us/Answer/Detail/000002541) sitúa la oferta siguiente en el inicio de créditos. [Su explicación de cancelación](https://help.hbomax.com/us-en/Answer/Detail/000002541) aclara que el avance nativo puede continuar al final del episodio después de cancelar la cuenta atrás.
 
 Al dejar terminar el vídeo con autoplay nativo apagado, HBO retiró el reproductor y regresó al catálogo. El script atiende ended antes de los handlers del elemento; la retirada del reproductor y el orden del evento tienen regresiones de contenido. La ejecución instalada completa de esa corrección aún no está certificada.
+
+## Reobservación del 9 de septiembre de 2026
+
+Se volvió a inspeccionar el aviso real con la cuenta atrás y, después de cancelar, con la etiqueta de reproducción automática apagada. Coincidieron con la jerarquía y las etiquetas de los fixtures existentes. En esta sesión también se observó `ended: true` con el aviso todavía visible; esto amplía la observación anterior. La navegación posterior no se atribuye a la extensión porque no se aisló el autoplay nativo y se usaron controles manuales.
+
+Desde 0.5.0, por petición expresa del usuario, Next episode usa este aviso en cuanto aparece durante la reproducción. Ya no exige esperar al final real. Este cambio de automatización tiene pruebas de fixtures; falta confirmarlo con la versión instalada.

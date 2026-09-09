@@ -185,6 +185,37 @@ describe('content bootstrap and local preferences', () => {
   });
 });
 
+describe('Crunchyroll next-episode offers', () => {
+  it('ignores the permanent next button, then advances once when the credits cue appears', async () => {
+    showIntro(false);
+    const settings = defaultSettings();
+    settings.actions.nextEpisode = true;
+    storageGet.mockResolvedValue({ [SETTINGS_KEY]: settings });
+    const next = document.querySelector<HTMLButtonElement>('[data-testid="next-episode-button"]')!;
+    const click = vi.spyOn(next, 'click');
+    await import('../src/content'); await tick(1200);
+    expect(click).not.toHaveBeenCalled();
+    intro().setAttribute('aria-label', 'Saltar créditos');
+    intro().querySelector('span')!.textContent = 'Saltar créditos';
+    await tick();
+    expect(click).not.toHaveBeenCalled();
+    intro().setAttribute('aria-hidden', 'false');
+    await tick();
+    expect(document.querySelector('video')!.ended).toBe(false);
+    expect(click).toHaveBeenCalledOnce();
+    expect(status().lastAction).toBe('nextEpisode');
+    const replacement = next.cloneNode(true) as HTMLButtonElement;
+    next.replaceWith(replacement);
+    const replacementClick = vi.spyOn(replacement, 'click');
+    await tick(1200);
+    media({ ended: true, paused: true });
+    document.querySelector('video')!.dispatchEvent(new Event('ended'));
+    await tick();
+    expect(click).toHaveBeenCalledOnce();
+    expect(replacementClick).not.toHaveBeenCalled();
+  });
+});
+
 describe('Crunchyroll recap automation', () => {
   beforeEach(() => {
     document.body.innerHTML = recapMarkup;

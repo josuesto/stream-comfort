@@ -1,39 +1,43 @@
-# Verification report 0.4.1
+# Verification report 0.5.0
 
-Date: September 8, 2026.
+Date: September 9, 2026.
 
-## Scope and live evidence
+## Result and scope
 
-Crunchyroll recap detection now recognizes the native Spanish “Saltar resumen” control. It reuses the observed intro icon and player hierarchy but is classified by exact visible text and accessible name. Existing visibility, enabled-state, media, episode, preference, and manual-interaction checks still apply. No permission or storage-schema change is needed.
+Next episode now acts on a contextual native offer during playback instead of waiting for `video.ended`. HBO's recognized up-next offer becomes a next candidate immediately. Crunchyroll uses its observed credits prompt together with its native next button, retaining a real-media-end fallback. Its permanently available toolbar next button alone cannot trigger an early advance.
 
-The actual recap control was inspected in an authenticated Chrome session on the Spanish web player. Both its visible (`aria-hidden="false"`, tabindex 0, opacity 1) and hidden (`aria-hidden="true"`, tabindex -1, opacity 0) states were observed. Its label remained mounted while hidden. Revealing the native controls allowed a manual click by accessible name; playback moved from approximately 1:21 to 1:56 in the same episode. This verifies the native control and its behavior, not an automated click by the new installed extension. No video, account data, content identifiers, or source URLs are included in the reduced fixture.
-
-The [official help article](https://help.crunchyroll.com/article/what-is-the-skip-intro-feature), checked the same day, still says the skip feature does not cover recaps. Actual observed controls take precedence for this integration. We do not claim every episode or player variant provides one. See [fixture provenance](../fixtures/README.md).
+No selectors, permissions, settings schema, or timing thresholds were added. The two advancement options retain their own preferences and share one consumed advancement per episode. Both remain off on a fresh install. English and Spanish popup descriptions explain the new behavior.
 
 ## Automated verification
 
-TypeScript, the MV3 build, and 267 tests across nine suites pass.
+`npm run check` passes: TypeScript, all **275 tests across nine suites**, and the Chrome MV3 build.
 
 | Suite | Tests | Coverage |
 | --- | ---: | --- |
-| Settings | 17 | Shared defaults, conservative migration, language and platform preferences |
+| Settings | 17 | Shared defaults, conservative legacy migration, language and platform choices |
 | Episode identity | 8 | Watch routes and invalid/unrelated URLs |
 | Worker | 21 | Serialized settings, migration, validation and tab pause |
-| Crunchyroll | 30 | Native recap fixture, text/label agreement, hidden/disabled/ambiguous controls, menus, locales, intro/credits/end |
-| HBO Max | 69 | Intro/recap, next offer, locale, menus and hidden controls |
-| Engine | 45 | Shared choices, platform isolation, duplicate/stale controls, navigation and manual holds |
-| Popup | 37 | Shared choices from any tab, recap availability, localized stale-adapter message, languages and idle stability |
-| Crunchyroll content | 20 | Recap preference off/on, duplicate prevention, later intro on the same control, new media after navigation, manual recap hold, existing settings/events |
-| HBO content | 20 | Shared preferences, intro/recap, credits/end, cancellation and navigation |
+| Crunchyroll adapter | 30 | Exact observed labels, recap, credits cue, permanent-toolbar guard, actual-end fallback, unsafe controls and locales |
+| HBO adapter | 69 | Immediate native offers, countdown/autoplay-off variants, intro/recap, menus, locales and unsafe controls |
+| Engine | 47 | Ready offers during playback, paused media, actual-end fallback, shared advancement ledger, manual holds and stale navigation |
+| Popup | 39 | Both languages, immediate-offer explanation, independent settings from any tab, zero idle DOM mutations |
+| Crunchyroll content | 21 | Credits cue appearing with Next on and credits off, hidden cues, replaced controls, recap settings and navigation |
+| HBO content | 23 | Hidden-to-visible offers with Next on and credits off, countdown/autoplay-off variants, repeated offers, cancellation, new episode, synchronous end handling |
 
-Recap automation is exercised through the actual content script, adapter and engine with jsdom fixtures and mocked Chrome storage/messages. Native media state is simulated. Both popup languages retain the idle-mutation regression checks.
+Content tests run the actual adapter, engine, scheduler and content script against reduced jsdom fixtures with mocked Chrome APIs and simulated media properties. They establish the requested behavior and safeguards in those states, not the success of real DRM playback or installed automatic clicks.
+
+The compiled 0.5.0 popup was opened in Chrome using a local preview with simulated extension APIs. The English description was visually checked; switching to Spanish showed the translated immediate-offer description. DOM layout checks retained a 350×600 popup document with no horizontal body overflow. This is a popup preview, not the installed toolbar popup or a live player test.
+
+## Live evidence and limits
+
+The Spanish native controls were inspected before their selectors were implemented. The HBO offer was observed again on September 9, both during playback and alongside a real `ended: true` video after cancelling a countdown. Its labels and hierarchy matched the existing countdown and autoplay-off fixtures. Native autoplay was not isolated in that session, so the observed navigation is not attributed to the extension.
+
+Crunchyroll's native credits prompt and persistent toolbar next button were observed on September 7; its recap button was inspected and manually activated on September 8. The new behavior reuses this evidence, without inventing another end-card selector. See [Crunchyroll provenance](../fixtures/README.md), [HBO provenance](../fixtures/hbomax/README.md), and the [historical 0.4.1 report](history/VERIFICATION-0.4.1.md).
+
+The 0.5.0 automatic-offer behavior has **not been verified in the installed extension on a live streaming service**. The existing unpacked folder contains the updated build, but Chrome and already-open service pages must reload it. The user's previous popup-flicker confirmation and earlier compiled popup preview do not certify this playback change.
 
 ## Remaining installed checks
 
-The new automatic recap click has not yet been verified in the user's installed build. Reload the extension and open streaming pages once after this update. Then test recap off/on, normal and fullscreen playback, and episode navigation. A manual pause or seek puts automation on hold; use Resume for this tab or start another episode before expecting an automatic action. The [manual checklist](MANUAL-TESTS.md) keeps these checks explicit.
+Reload the extension card and streaming page. With global/platform on, Next episode on, Skip credits off, and no tab pause/manual hold, let HBO's offer appear and verify one immediate advance. Test native autoplay on/off separately. On Crunchyroll, ordinary toolbar visibility must not skip the episode; the visible credits prompt plus next control should trigger one advance. Test fullscreen, pause/resume, and successive episodes using the [manual checklist](MANUAL-TESTS.md).
 
-The [0.4.0 report](history/VERIFICATION-0.4.0.md) records the earlier compiled popup Chrome preview, shared-settings migration and previous live evidence. No new full installed-playback certification is claimed for either service.
-
-## Follow-up: September 9
-
-The user reported HBO not advancing with Next episode enabled. All 134 existing HBO/engine tests passed again, and the recognized native next offers were observed in a fresh live session, including alongside an actual ended video. The failure has not been isolated; no fix or successful extension-caused advance is claimed. Track the missing reproduction conditions and manual-hold/credits distinction in the [open issue](issues/hbo-next-episode-2026-09-09.md).
+The [HBO report](issues/hbo-next-episode-2026-09-09.md) now records the explicit behavior correction and fixture results. Installed confirmation remains pending; the earlier session's exact failure is not retroactively diagnosed.

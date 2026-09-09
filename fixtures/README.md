@@ -27,3 +27,7 @@ El [artículo oficial](https://help.crunchyroll.com/article/what-is-the-skip-int
 El clic del control real se verificó manualmente, no con la nueva extensión instalada. La detección y automatización nuevas se prueban con fixtures. El estado `video.ended` sigue simulado; los finales naturales y la matriz completa instalada permanecen en la lista manual.
 
 Los fixtures de error, navegación, ambigüedad, vídeo pausado, ocultación y controles deshabilitados son variaciones sintéticas para probar guardas. No son capturas de otros servicios ni prueba de compatibilidad con otras variantes del reproductor.
+
+## Uso del aviso de créditos en 0.5.0
+
+Next episode también se activa con el aviso visible «Saltar créditos» y el botón siguiente. El botón de la barra por sí solo permanece ignorado durante el contenido normal porque ya se observó que está siempre montado. Se conserva el avance al final real si el botón siguiente sigue visible. No se añaden selectores ni tiempos de contenido; el nuevo comportamiento se verifica con los estados observados y fixtures.

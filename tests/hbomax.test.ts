@@ -232,12 +232,12 @@ describe('observed HBO up-next offer', () => {
     return overlay().querySelector<HTMLButtonElement>('[data-testid="player-ux-up-next-button"]')!;
   }
 
-  it('uses the active credits offer, even when no skip button is mounted', () => {
+  it('offers immediate next and credits actions without requiring media end or a skip button', () => {
     const next = offer();
     skipButton().remove();
-    expect(adapter().inspect().candidates).toEqual({credits: next});
+    expect(adapter().inspect().candidates).toEqual({credits: next, nextEpisode: next});
     Object.defineProperty(document.querySelector('video'), 'currentTime', {value:99999});
-    expect(adapter().inspect().candidates.nextEpisode).toBeUndefined();
+    expect(adapter().inspect().candidates.nextEpisode).toBe(next);
     Object.defineProperty(document.querySelector('video'), 'ended', {value:true});
     expect(adapter().inspect().candidates).toEqual({nextEpisode: next});
   });
@@ -247,6 +247,7 @@ describe('observed HBO up-next offer', () => {
     overlay().querySelector('[data-testid="up_next"]')!.outerHTML = readFileSync('fixtures/hbomax/up-next-off-es.html','utf8');
     const next = overlay().querySelector<HTMLButtonElement>('[data-testid="player-ux-up-next-button"]')!;
     expect(adapter().inspect().candidates.credits).toBe(next);
+    expect(adapter().inspect().candidates.nextEpisode).toBe(next);
   });
 
   it.each(['hidden','disabled','aria-disabled','inert','detached','duplicate','wrong-label','wrong-name','outside-offer','hidden-offer','menu'])(

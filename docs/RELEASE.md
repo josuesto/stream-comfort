@@ -1,14 +1,16 @@
-# Version 0.4.1: Crunchyroll recap skipping
+# Version 0.5.0: act on next-episode offers
 
-The shared Skip recaps preference now activates Crunchyroll's observed native “Saltar resumen” button as well as HBO Max's recap control. Preferences remain configurable from any tab. Recap, intro, credits, and next episode stay independent; existing settings are preserved.
+Next episode now activates a service's contextual next-episode offer as soon as it appears during playback. Previous releases waited for the actual media end unless Skip credits was also enabled. This change follows the user's September 9 clarification of the intended behavior.
 
 ## Acceptance criteria
 
-1. Recognize only the observed Spanish recap control: matching text and accessible name, the existing skip icon, and an unambiguous current player. Require a visible, enabled control with explicit active ARIA state.
-2. Respect the saved recap preference independently of intro. Global/platform off, tab pause, manual hold, paused/seeking media, hidden controls, and unsupported locales prevent automation.
-3. Attempt a recap at most once per episode, even when its control disappears/reappears. Permit a later intro on the same native button. Discard stale controls after navigation until new media is identified.
-4. Explain recap availability in English and Spanish without an HBO-only restriction. An older Crunchyroll content script gets a localized page-reload message.
-5. Add a reduced fixture with direct live provenance and focused regression tests. Report manual native-button verification separately from fixture-tested extension automation.
-6. Keep the current permissions, local settings schema, popup stability, and safe advancement defaults. Deliver the source and loadable build.
+1. With Next episode on and Skip credits off, activate HBO's recognized visible next offer before `video.ended`. Support the already observed countdown and autoplay-off variants without waiting for a countdown or using content timestamps.
+2. On Crunchyroll, require the visible native “Saltar créditos” prompt and next control during playback. Ignore its permanent toolbar next button during ordinary content. Preserve the actual-end fallback when a valid next control remains visible.
+3. Keep advancement off by default and preserve saved settings. Either credits or next can request the same advancement; both enabled still produce at most one attempt per episode.
+4. Preserve all visibility, disabled/ambiguous-control, manual-hold, pause, media readiness, seeking, settings, and navigation checks. A route change cannot authorize clicking stale controls. A repeated/replaced offer cannot produce another advancement.
+5. Explain the immediate-offer behavior and potential credit skipping in English and Spanish. Preferences remain configurable from any tab, independently of the current player. Preserve the fixed-size popup and idle-render safeguards.
+6. Pass TypeScript checking, the focused regressions and full test suite, and build a loadable MV3 extension. Update installation instructions, verification, the manual checklist, and the project note. Publish source and a compiled prerelease.
 
-Controls can be missing on individual episodes; unobserved player languages remain unsupported. No guessed recap boundaries or content timestamps are introduced. See [verification](VERIFICATION.md) and [manual checks](MANUAL-TESTS.md).
+## Limitations
+
+This uses existing live-observed selectors and reduced fixtures; no new player variant is claimed. Player-label evidence is Spanish. The Crunchyroll actual-end fallback does not depend on Spanish text, but early advancement requires its verified Spanish credits prompt. Hidden controls, paused/seeking playback, background tabs and manual holds prevent automatic actions. Native autoplay remains independent. Either advancement option can omit post-credit scenes; there is no longer a full-video-end-only setting. Installed verification of the changed behavior remains in the [manual checklist](MANUAL-TESTS.md).

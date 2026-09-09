@@ -27,6 +27,7 @@ export interface PlaybackSnapshot {
   episodeId: string | null;
   player: HTMLElement | null;
   video: HTMLVideoElement | null;
+  /** Controls ready to act on now; nextEpisode requires a contextual offer or real media end. */
   candidates: Partial<Record<Action, HTMLElement>>;
   capabilities: Capabilities;
 }
