@@ -33,3 +33,7 @@ Recap automation is exercised through the actual content script, adapter and eng
 The new automatic recap click has not yet been verified in the user's installed build. Reload the extension and open streaming pages once after this update. Then test recap off/on, normal and fullscreen playback, and episode navigation. A manual pause or seek puts automation on hold; use Resume for this tab or start another episode before expecting an automatic action. The [manual checklist](MANUAL-TESTS.md) keeps these checks explicit.
 
 The [0.4.0 report](history/VERIFICATION-0.4.0.md) records the earlier compiled popup Chrome preview, shared-settings migration and previous live evidence. No new full installed-playback certification is claimed for either service.
+
+## Follow-up: September 9
+
+The user reported HBO not advancing with Next episode enabled. All 134 existing HBO/engine tests passed again, and the recognized native next offers were observed in a fresh live session, including alongside an actual ended video. The failure has not been isolated; no fix or successful extension-caused advance is claimed. Track the missing reproduction conditions and manual-hold/credits distinction in the [open issue](issues/hbo-next-episode-2026-09-09.md).
